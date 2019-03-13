@@ -80,6 +80,7 @@ public class GPC {
 				}
 			}
 		}
+		fixSyntaxErrors();
 		replaceFunctionNames();
 		replaceComboNames();
 		gpcReader.close();
@@ -274,7 +275,7 @@ public class GPC {
 	private void replaceComboNames() {
 		if(comboList.isEmpty()) return;
 		List<String> comboNames = getComboNames();
-		String pattern = "\\b\\s*(combo_run|combo_running|combo_stop|combo_restart|call)\\b\\s*\\(\\s*";
+		String pattern = "(combo_run|combo_running|combo_stop|combo_restart|call)\\s*\\(\\s*";
 		for(int i = 0; i < initCode.size(); i++) {
 			for(int k = 0; k < comboNames.size(); k++)
 				initCode.set(i, initCode.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
@@ -310,10 +311,13 @@ public class GPC {
 		
 	}
 	
-	private static String fixSemicolons(String s) {
-		String fixedStr = s;
-		
-		return fixedStr;
+	private void fixSyntaxErrors() {
+		for(int i = 0; i < comboList.size(); i++) {
+			String str = comboList.get(i);
+			str = str.replaceFirst("\\s*combo\\s+(\\w+)\\W+\\{", "combo $1 \\{");
+			comboList.set(i, str);
+		}
+		return;
 	}
 	
 	private void replaceFunctionNames() {
