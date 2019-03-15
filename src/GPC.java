@@ -295,7 +295,7 @@ public class GPC {
 	private String fixSemicolons(String s) {
 		//String[] k = ss.split("\\b|(?=\\)?)|(?=\\(?)");
 		// splits by ( ) { } ; , and var start/end
-		List<String> tmp = new ArrayList(Arrays.asList(s.split("\\b|(?=\\))|(?=\\()|(?<=\\))|(?<=\\()|(?=\\;)|(?<=\\;)|(?=\\})|(?<=\\})|(?=\\{)|(?<=\\{)|(?=\\,)|(?<=\\,)")));
+		List<String> tmp = new ArrayList<String>(Arrays.asList(s.split("\\b|(?=\\))|(?=\\()|(?<=\\))|(?<=\\()|(?=\\;)|(?<=\\;)|(?=\\})|(?<=\\})|(?=\\{)|(?<=\\{)|(?=\\,)|(?<=\\,)")));
 		//for(int i = 0; i < tmp.size(); i++)
 			//System.out.println(i + " " + tmp.get(i).trim().replaceAll("\\s*", ""));
 		return fixSemicolons(tmp, false, false, 0, false);
@@ -359,7 +359,7 @@ public class GPC {
 			prevVar = false;
 			prevOp = true;
 		}
-		else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\&|\\||\\=|\\!|\\>|\\<).*")) { 
+		else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\&|\\||\\=|\\!|\\^|\\>|\\<).*")) { 
 			if(fixedStr.length() > 1) {
 				codeBlock.add(1, fixedStr.substring(1));
 				fixedStr = "" + fixedStr.charAt(0);
