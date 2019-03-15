@@ -23,20 +23,14 @@ public class GPCtoGPC2 {
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getName().substring(0, (gpcFile.getName().length() - 3)) + "gpc2.gpc"), "utf-8"));
 		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter\"))\r\n");
 		writer.write(
-				"#include <titanone.gph>\r\n\r\n" +
+				"#include <titanone.gph>\r\n\r\n");/* +
+				
 				"#undef set_val\r\n" + 
-				//"#undef combo_run\r\n" + 
-				//"#undef combo_stop\r\n" + 
-				//"#undef combo_running\r\n" + 
-				//"//#undef combo\r\n" + 
+				"#undef wait\r\n" + 
 				"#define set_val(a,b) set_val((uint8)a,(int16)b);\r\n" + 
-				//"#define combo_run(a) combo_run(c_##a)\r\n" + 
-				//"#define combo_stop(a) combo_stop(c_##a)\r\n" + 
-				//"#define combo_running(a) (!c_##a)\r\n" + 
-				//"#define combo_suspend(a) combo_pause(c_##a)\r\n" + 
-				//"#define combo_suspended(a) (!c_##a&&_##a[1])\r\n" + 
 				"#define wait(a) ;wait((int)a);\r\n" + 
 				"#define IF(a) if(a)\r\n\r\n");
+				*/
 		
 		writer.write(newGPC.toString());
 		writer.close();
