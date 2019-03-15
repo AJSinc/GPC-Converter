@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
@@ -80,9 +81,7 @@ public class GPC {
 				}
 			}
 		}
-		fixSyntaxErrors();
-		replaceFunctionNames();
-		replaceComboNames();
+		fixErrors();
 		gpcReader.close();
 	}
 	
@@ -93,23 +92,6 @@ public class GPC {
 		} while(gpcReader.hasNextLine() && str.isEmpty());
 		readIdx = 0;
 		return str;
-	}
-	
-	private static String parseVarType(String s) {
-		String parsedStr = "";
-		int i = 0;
-		while(i < s.length()) {
-			readIdx++;
-			if(s.charAt(i) == ';') break;
-			parsedStr += "" + s.charAt(i);
-			i++;
-		}
-		if(parsedStr.trim().endsWith(",")) {
-			String tmp = parsedStr.trim() + "\r\n\t" + readNextLine();
-			i = -i; // set it to negative, so it subtracts the number of chars previously read in prev lines
-			parsedStr = parseVarType(tmp);
-		}
-		return parsedStr + (!parsedStr.endsWith(";") ? ";" : "");
 	}
 	
 	private static String parseDefine(String s) {
@@ -128,6 +110,36 @@ public class GPC {
 			parsedStr = parseDefine(tmp);
 		}
 		return (parsedStr + (!parsedStr.endsWith(";") ? ";" : "")).replaceAll(",", ";\r\ndefine ");
+	}
+	
+	private static String parseMapping(String s) { 
+		String parsedStr = "";
+		int i = 0;
+		while(i < s.length()) {
+			readIdx++;
+			if(s.charAt(i) == ';') break;
+			parsedStr += "" + s.charAt(i);
+			i++;
+		}
+		// add support for multiline remaps?
+		return parsedStr + (!parsedStr.endsWith(";") ? ";" : "");
+	}
+	
+	private static String parseVarType(String s) {
+		String parsedStr = "";
+		int i = 0;
+		while(i < s.length()) {
+			readIdx++;
+			if(s.charAt(i) == ';') break;
+			parsedStr += "" + s.charAt(i);
+			i++;
+		}
+		if(parsedStr.trim().endsWith(",")) {
+			String tmp = parsedStr.trim() + "\r\n\t" + readNextLine();
+			i = -i; // set it to negative, so it subtracts the number of chars previously read in prev lines
+			parsedStr = parseVarType(tmp);
+		}
+		return parsedStr + (!parsedStr.endsWith(";") ? ";" : "");
 	}
 	
 	private static String parseCodeBlock(String s, char blockSetStart, char blockSetEnd) {
@@ -158,7 +170,242 @@ public class GPC {
 		codeBlockBraceCount = 0;
 		return parsedStr;
 	}
+
+	private static String replaceKeywords(String s) {
+		File tmpDir = new File(System.getProperty("user.dir") + "\\keywords.db");
+		if(tmpDir.exists()) {
+			try {
+				Scanner kwSc = new Scanner(tmpDir);
+				while(kwSc.hasNextLine()) {
+					String str = trimSpacing(kwSc.nextLine());
+					s = s.replaceAll("\\b" + str + "\\b", "t1_" + str);
+				}
+				kwSc.close();
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		s = s.replaceAll("\\s*combo\\s+(\\w+)\\W+\\{", "combo $1 \\{");
+		s = s.replaceAll((":"), (" ")); // : = ; in CM lool
+		s = s.replaceAll("main\\s*\\{", "main\\{");
+		s = s.replaceAll("init\\s*\\{", "init\\{");
+		s = s.replaceAll("data\\s*\\(", "data\\(");
+		s = s.replaceAll("\\bdefine\\b", "\r\ndefine");
+		s = s.replaceAll("\\bint\\b", "\r\nint");
+		s = s.replaceAll("\\binit\\b", "\r\ninit");
+		s = s.replaceAll("\\bmain\\b", "\r\nmain");
+		s = s.replaceAll("\\bcombo\\b", "\r\ncombo");
+		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
+		s = s.replaceAll("\\bdata\\b", "\r\ndata");
+		s = s.replaceAll("\\s*;", ";");
+		return s;
+	}
 	
+	private void replaceComboNames() {
+		if(comboList.isEmpty()) return;
+		List<String> comboNames = getComboNames();
+		String pattern = "(combo_run|combo_running|combo_stop|combo_restart|call)\\s*\\(\\s*";
+		for(int i = 0; i < initCode.size(); i++) {
+			for(int k = 0; k < comboNames.size(); k++)
+				initCode.set(i, initCode.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
+		}
+		for(int i = 0; i < mainCode.size(); i++) {
+			for(int k = 0; k < comboNames.size(); k++)
+				mainCode.set(i, mainCode.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
+		}
+		for(int i = 0; i < comboList.size(); i++) {
+			for(int k = 0; k < comboNames.size(); k++) {
+				comboList.set(i, comboList.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k) + "\\)"));
+				comboList.set(i, comboList.get(i).replaceAll("\\s*combo\\s*" + comboNames.get(k) + "\\s*\\{", "combo c_" + comboNames.get(k) + "\\{"));
+			}
+		}
+		for(int i = 0; i < functionList.size(); i++) {
+			for(int k = 0; k < comboNames.size(); k++)
+				functionList.set(i, functionList.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
+		}
+		
+	}
+	
+	private List<String> getComboNames() {
+		List<String> comboNames = new ArrayList<String>();
+		if(!comboList.isEmpty()) {
+			for(int i = 0; i < comboList.size(); i++) {
+				String combo = comboList.get(i);
+				int lastIdx = combo.indexOf("{") != -1 ? combo.indexOf("{") : combo.length();
+				String comboName = combo.substring(combo.indexOf("combo ") + 6, lastIdx).trim();
+				comboNames.add(comboName);
+			}
+		}
+		return comboNames;
+		
+	}
+	
+	private void replaceFunctionNames() {
+		if(functionList.isEmpty()) return;
+		List<String> functionNames = getFunctionNames();
+		
+		for(int i = 0; i < initCode.size(); i++) {
+			for(int k = 0; k < functionNames.size(); k++)
+				initCode.set(i, initCode.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
+		}
+		for(int i = 0; i < mainCode.size(); i++) {
+			for(int k = 0; k < functionNames.size(); k++)
+				mainCode.set(i, mainCode.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
+		}
+		for(int i = 0; i < comboList.size(); i++) {
+			for(int k = 0; k < functionNames.size(); k++)
+				comboList.set(i, comboList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
+			}
+		for(int i = 0; i < functionList.size(); i++) {
+			for(int k = 0; k < functionNames.size(); k++)
+				functionList.set(i, functionList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));	
+		}
+		
+	}
+	
+	private List<String> getFunctionNames() {
+		List<String> functionNames = new ArrayList<String>();
+		if(!functionList.isEmpty()) {
+			for(int i = 0; i < functionList.size(); i++) {
+				String function = functionList.get(i);
+				int lastIdx = function.indexOf("(") != -1 ? function.indexOf("(") : function.length();
+				String funcName = function.substring(function.indexOf("function ") + 9, lastIdx).trim();
+				functionNames.add(funcName);
+			}
+		}
+		return functionNames;
+	}
+
+	private void fixSemicolons() {
+		for(int i = 0; i < initCode.size(); i++) {
+			initCode.set(i, fixSemicolons(initCode.get(i)));
+		}
+		for(int i = 0; i < mainCode.size(); i++) {
+				mainCode.set(i, fixSemicolons(mainCode.get(i)));
+		}
+		for(int i = 0; i < comboList.size(); i++) {
+				comboList.set(i, fixSemicolons(comboList.get(i)));
+		}
+		for(int i = 0; i < functionList.size(); i++) {
+			functionList.set(i, fixSemicolons(functionList.get(i)));
+		}
+	}
+	
+	private String fixSemicolons(String s) {
+		//String[] k = ss.split("\\b|(?=\\)?)|(?=\\(?)");
+		// splits by ( ) { } ; , and var start/end
+		List<String> tmp = new ArrayList(Arrays.asList(s.split("\\b|(?=\\))|(?=\\()|(?<=\\))|(?<=\\()|(?=\\;)|(?<=\\;)|(?=\\})|(?<=\\})|(?=\\{)|(?<=\\{)|(?=\\,)|(?<=\\,)")));
+		//for(int i = 0; i < tmp.size(); i++)
+			//System.out.println(i + " " + tmp.get(i).trim().replaceAll("\\s*", ""));
+		return fixSemicolons(tmp, false, false, 0, false);
+	}
+	
+	//Strictly recursive helper function
+	private String fixSemicolons(List<String> codeBlock, boolean prevOp, boolean prevVar, int parenCount, boolean oneLineIf) {
+		if(codeBlock.isEmpty()) return "";
+		String fixedStr = codeBlock.get(0).trim().replaceAll("\\s", "");
+		
+		if(fixedStr.isEmpty()) { } // Empty line
+		else if(fixedStr.matches("\\s*(main|function|combo|init)\\s*")) { // matches start of stuff
+			fixedStr = fixedStr + " ";
+			if(fixedStr.equals("combo ")) {
+				fixedStr = fixedStr + codeBlock.get(2) ;
+				codeBlock.remove(2);
+			}
+		}
+		else if(fixedStr.matches("\\(")) {
+			if(parenCount <= 0) parenCount = 0;
+			parenCount++;
+			prevVar = false;
+			prevOp = true;
+		}
+		else if(fixedStr.matches((".*(\\[|\\]).*"))) {
+			prevVar = false;
+			prevOp = false;
+		}
+		else if(fixedStr.matches("\\)")) {
+			parenCount--;
+			prevVar = true;
+			prevOp = false;
+			if(parenCount == 0) {
+				parenCount = -1; // paren just ended
+			}
+		}
+		else if(fixedStr.matches("\\;")) {
+			fixedStr = fixedStr + "\r\n";
+			prevVar = false;
+			prevOp = true;
+		}
+		else if(fixedStr.matches(("return"))) {
+			fixedStr += " ";
+			prevVar = false;
+			prevOp = false;
+		}
+		else if(fixedStr.matches("\\s*(if|else)\\s*")) { // if statement
+			if(prevVar) fixedStr = ";\r\n" + fixedStr;
+			fixedStr += " ";
+			oneLineIf = true;
+		}
+		else if(fixedStr.matches("(\\{|\\}|\\!)")) { // { } !
+			if(fixedStr.equals("{")) {
+				oneLineIf = false;
+				fixedStr += "\r\n";
+			}
+			if(fixedStr.equals("}")) {
+				fixedStr = (prevVar ? ";" : "") + "\r\n" + fixedStr + "\r\n";
+			}
+			else if(prevVar && parenCount != -1) fixedStr = ";\r\n" + fixedStr;
+			prevVar = false;
+			prevOp = true;
+		}
+		else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\&|\\||\\=|\\!|\\>|\\<).*")) { 
+			if(fixedStr.length() > 1) {
+				codeBlock.add(1, fixedStr.substring(1));
+				fixedStr = "" + fixedStr.charAt(0);
+			}
+			prevOp = true;
+			prevVar = false;
+		}
+		else {
+			if(oneLineIf && parenCount <= 0) {
+				fixedStr = "\r\n\t" + fixedStr;
+				oneLineIf = false;
+			}
+			else if(prevVar) {
+				if(!fixedStr.matches("^[0-9]*$"))
+					fixedStr = ";\r\n" + fixedStr;
+				else fixedStr = "";
+			}
+			
+			prevVar = true;
+			prevOp = false;
+		}
+		codeBlock.remove(0); // pop first off
+		//System.out.print(fixedStr);
+		return fixedStr + fixSemicolons(codeBlock, prevOp, prevVar, parenCount, oneLineIf);
+	}
+	
+	private void fixErrors() {
+		replaceFunctionNames();
+		replaceComboNames();
+		fixSemicolons();
+	}
+	
+	public String toString() {
+		String str = "";
+		str += String.join("\r\n", definedList) + "\r\n\r\n";
+		str += String.join("\r\n", mappingCode) + "\r\n\r\n";
+		str += String.join("\r\n", varList) + "\r\n\r\n";
+		str += String.join("\r\n", initCode) + "\r\n\r\n";
+		str += String.join("\r\n", mainCode) + "\r\n\r\n";
+		str += String.join("\r\n", comboList) + "\r\n\r\n";
+		str += String.join("\r\n", functionList) + "\r\n\r\n";
+		str += dataSegment;
+		fixSemicolons("");
+		return str;
+	}
+
 	private static String removeComments(String code) {
 	    StringBuilder newCode = new StringBuilder();
 	    try (StringReader sr = new StringReader(code)) {
@@ -227,145 +474,4 @@ public class GPC {
 		return s.trim().replaceAll("(\\s+)"," ");
 	}
 	
-	private static String parseMapping(String s) { 
-		String parsedStr = "";
-		int i = 0;
-		while(i < s.length()) {
-			readIdx++;
-			if(s.charAt(i) == ';') break;
-			parsedStr += "" + s.charAt(i);
-			i++;
-		}
-		// add support for multiline remaps?
-		return parsedStr + (!parsedStr.endsWith(";") ? ";" : "");
-	}
-	
-	private static String replaceKeywords(String s) {
-		File tmpDir = new File(System.getProperty("user.dir") + "\\keywords.db");
-		if(tmpDir.exists()) {
-			try {
-				Scanner kwSc = new Scanner(tmpDir);
-				while(kwSc.hasNextLine()) {
-					String str = trimSpacing(kwSc.nextLine());
-					s = s.replaceAll("\\b" + str + "\\b", "t1_" + str);
-				}
-				kwSc.close();
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		
-		s = s.replaceAll((":"), (";")); // : = ; in CM lool
-		s = s.replaceAll("main\\s*\\{", "main\\{");
-		s = s.replaceAll("init\\s*\\{", "init\\{");
-		s = s.replaceAll("data\\s*\\(", "data\\(");
-		s = s.replaceAll("\\bdefine\\b", "\r\ndefine");
-		s = s.replaceAll("\\bint\\b", "\r\nint");
-		s = s.replaceAll("\\binit\\b", "\r\ninit");
-		s = s.replaceAll("\\bmain\\b", "\r\nmain");
-		s = s.replaceAll("\\bcombo\\b", "\r\ncombo");
-		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
-		s = s.replaceAll("\\bdata\\b", "\r\ndata");
-		s = s.replaceAll("\\s*;", ";");
-		
-		return s;
-	}
-	
-	private void replaceComboNames() {
-		if(comboList.isEmpty()) return;
-		List<String> comboNames = getComboNames();
-		String pattern = "(combo_run|combo_running|combo_stop|combo_restart|call)\\s*\\(\\s*";
-		for(int i = 0; i < initCode.size(); i++) {
-			for(int k = 0; k < comboNames.size(); k++)
-				initCode.set(i, initCode.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
-		}
-		for(int i = 0; i < mainCode.size(); i++) {
-			for(int k = 0; k < comboNames.size(); k++)
-				mainCode.set(i, mainCode.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
-		}
-		for(int i = 0; i < comboList.size(); i++) {
-			for(int k = 0; k < comboNames.size(); k++) {
-				comboList.set(i, comboList.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k) + "\\)"));
-				comboList.set(i, comboList.get(i).replaceAll("\\s*combo\\s*" + comboNames.get(k) + "\\s*\\{", "combo c_" + comboNames.get(k) + "\\{"));
-			}
-		}
-		for(int i = 0; i < functionList.size(); i++) {
-			for(int k = 0; k < comboNames.size(); k++)
-				functionList.set(i, functionList.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
-		}
-		
-	}
-	
-	private List<String> getComboNames() {
-		List<String> comboNames = new ArrayList<String>();
-		if(!comboList.isEmpty()) {
-			for(int i = 0; i < comboList.size(); i++) {
-				String combo = comboList.get(i);
-				int lastIdx = combo.indexOf("{") != -1 ? combo.indexOf("{") : combo.length();
-				String comboName = combo.substring(combo.indexOf("combo ") + 6, lastIdx).trim();
-				comboNames.add(comboName);
-			}
-		}
-		return comboNames;
-		
-	}
-	
-	private void fixSyntaxErrors() {
-		for(int i = 0; i < comboList.size(); i++) {
-			String str = comboList.get(i);
-			str = str.replaceFirst("\\s*combo\\s+(\\w+)\\W+\\{", "combo $1 \\{");
-			comboList.set(i, str);
-		}
-		return;
-	}
-	
-	private void replaceFunctionNames() {
-		if(functionList.isEmpty()) return;
-		List<String> functionNames = getFunctionNames();
-		
-		for(int i = 0; i < initCode.size(); i++) {
-			for(int k = 0; k < functionNames.size(); k++)
-				initCode.set(i, initCode.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
-		}
-		for(int i = 0; i < mainCode.size(); i++) {
-			for(int k = 0; k < functionNames.size(); k++)
-				mainCode.set(i, mainCode.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
-		}
-		for(int i = 0; i < comboList.size(); i++) {
-			for(int k = 0; k < functionNames.size(); k++)
-				comboList.set(i, comboList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
-			}
-		for(int i = 0; i < functionList.size(); i++) {
-			for(int k = 0; k < functionNames.size(); k++)
-				functionList.set(i, functionList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));	
-		}
-		
-	}
-	
-	private List<String> getFunctionNames() {
-		List<String> functionNames = new ArrayList<String>();
-		if(!functionList.isEmpty()) {
-			for(int i = 0; i < functionList.size(); i++) {
-				String function = functionList.get(i);
-				int lastIdx = function.indexOf("(") != -1 ? function.indexOf("(") : function.length();
-				String funcName = function.substring(function.indexOf("function ") + 9, lastIdx).trim();
-				functionNames.add(funcName);
-			}
-		}
-		return functionNames;
-	}
-	
-	public String toString() {
-		String str = "";
-		str += String.join("\r\n", definedList) + "\r\n\r\n";
-		str += String.join("\r\n", mappingCode) + "\r\n\r\n";
-		str += String.join("\r\n", varList) + "\r\n\r\n";
-		str += String.join("\r\n", initCode) + "\r\n\r\n";
-		str += String.join("\r\n", mainCode) + "\r\n\r\n";
-		str += String.join("\r\n", comboList) + "\r\n\r\n";
-		str += String.join("\r\n", functionList) + "\r\n\r\n";
-		str += dataSegment;
-		return str;
-	}
 }
