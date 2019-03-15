@@ -8,7 +8,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.HashMap;
 
 public class GPC {
 	
@@ -206,24 +208,24 @@ public class GPC {
 		if(comboList.isEmpty()) return;
 		List<String> comboNames = getComboNames();
 		String pattern = "(combo_run|combo_running|combo_stop|combo_restart|call)\\s*\\(\\s*";
-		for(int i = 0; i < initCode.size(); i++) {
-			for(int k = 0; k < comboNames.size(); k++)
-				initCode.set(i, initCode.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
-		}
-		for(int i = 0; i < mainCode.size(); i++) {
-			for(int k = 0; k < comboNames.size(); k++)
-				mainCode.set(i, mainCode.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
-		}
-		for(int i = 0; i < comboList.size(); i++) {
-			for(int k = 0; k < comboNames.size(); k++) {
-				comboList.set(i, comboList.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k) + "\\)"));
+		
+		for(int k = 0; k < comboNames.size(); k++) {
+			String cPattern = pattern + comboNames.get(k) + "\\s*\\)";
+			for(int i = 0; i < initCode.size(); i++) {
+				initCode.set(i, initCode.get(i).replaceAll(cPattern, " $1\\(c_" + comboNames.get(k)+ "\\)"));
+			}
+			for(int i = 0; i < mainCode.size(); i++) {
+				mainCode.set(i, mainCode.get(i).replaceAll(cPattern, " $1\\(c_" + comboNames.get(k)+ "\\)"));
+			}
+			for(int i = 0; i < comboList.size(); i++) {
+				comboList.set(i, comboList.get(i).replaceAll(cPattern, " $1\\(c_" + comboNames.get(k) + "\\)"));
 				comboList.set(i, comboList.get(i).replaceAll("\\s*combo\\s*" + comboNames.get(k) + "\\s*\\{", "combo c_" + comboNames.get(k) + "\\{"));
 			}
+			for(int i = 0; i < functionList.size(); i++) {
+				functionList.set(i, functionList.get(i).replaceAll(cPattern, " $1\\(c_" + comboNames.get(k)+ "\\)"));
+			}
 		}
-		for(int i = 0; i < functionList.size(); i++) {
-			for(int k = 0; k < comboNames.size(); k++)
-				functionList.set(i, functionList.get(i).replaceAll(pattern + comboNames.get(k) + "\\s*\\)", " $1\\(c_" + comboNames.get(k)+ "\\)"));
-		}
+		
 		
 	}
 	
@@ -244,22 +246,20 @@ public class GPC {
 	private void replaceFunctionNames() {
 		if(functionList.isEmpty()) return;
 		List<String> functionNames = getFunctionNames();
-		
-		for(int i = 0; i < initCode.size(); i++) {
-			for(int k = 0; k < functionNames.size(); k++)
-				initCode.set(i, initCode.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
-		}
-		for(int i = 0; i < mainCode.size(); i++) {
-			for(int k = 0; k < functionNames.size(); k++)
+		for(int k = 0; k < functionNames.size(); k++) {
+			String pattern = "\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(";
+			for(int i = 0; i < initCode.size(); i++) {
+				initCode.set(i, initCode.get(i).replaceAll(pattern, " f_" + functionNames.get(k) + "\\("));
+			}
+			for(int i = 0; i < mainCode.size(); i++) {
 				mainCode.set(i, mainCode.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
-		}
-		for(int i = 0; i < comboList.size(); i++) {
-			for(int k = 0; k < functionNames.size(); k++)
+			}
+			for(int i = 0; i < comboList.size(); i++) {
 				comboList.set(i, comboList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
 			}
-		for(int i = 0; i < functionList.size(); i++) {
-			for(int k = 0; k < functionNames.size(); k++)
+			for(int i = 0; i < functionList.size(); i++) {
 				functionList.set(i, functionList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));	
+			}
 		}
 		
 	}
@@ -277,6 +277,74 @@ public class GPC {
 		return functionNames;
 	}
 
+	private void removeUnusedFunctions() { 
+		List<String> functionNames = getFunctionNames();
+		List<String> comboNames = getComboNames();
+		Map<String, Boolean> usedFunctions = new HashMap<String, Boolean>();
+		Map<String, Boolean> usedCombos = new HashMap<String, Boolean>();
+		
+		boolean change = true;
+		// check init and main for used combos/functions
+	
+
+		for(int i = 0; i < functionNames.size(); i++) {
+			boolean used = false;
+			String pattern = "(?s).*\\b" + functionNames.get(i) + "\\b.*";
+			for(int k = 0; k < initCode.size() && !used; k++) used = initCode.get(k).matches(pattern);
+			for(int k = 0; k < mainCode.size() && !used; k++) used = mainCode.get(k).matches(pattern);
+			usedFunctions.put(functionNames.get(i), used);
+		}
+		
+		for(int i = 0; i < comboNames.size(); i++) {
+			boolean used = false;
+			String pattern = "(?s).*\\b" + comboNames.get(i) + "\\b.*";
+			for(int k = 0; k < initCode.size() && !used; k++) used = initCode.get(k).matches(pattern);
+			for(int k = 0; k < mainCode.size() && !used; k++) used = mainCode.get(k).matches(pattern);
+			usedCombos.put(comboNames.get(i), used);
+		}	
+		while(change) {
+			change = false;
+			for(int i = 0; i < usedFunctions.size(); i++) {
+				if(usedFunctions.get(functionNames.get(i))) continue;
+				String pattern = "(?s).*\\b" + functionNames.get(i) + "\\b.*";
+				boolean used = false;
+				for(int k = 0; k < comboList.size() && !used; k++) {
+					if(usedCombos.get(comboNames.get(k))) used = comboList.get(k).matches(pattern);
+				}
+				for(int k = 0; k < functionList.size() && !used; k++) {
+					if(usedFunctions.get(functionNames.get(k))) used = functionList.get(k).matches(pattern);
+				}
+				if(used) {
+					usedFunctions.put(functionNames.get(i), true);
+					change = true;
+				}
+			}
+			
+			for(int i = 0; i < usedCombos.size(); i++) {
+				if(usedCombos.get(comboNames.get(i))) continue;
+				String pattern = "(?s).*\\b" + comboNames.get(i) + "\\b.*";
+				boolean used = false;
+				for(int k = 0; k < comboList.size() && !used; k++) {
+					if(usedCombos.get(comboNames.get(k))) used = comboList.get(k).matches(pattern);
+				}
+				for(int k = 0; k < functionList.size() && !used; k++) {
+					if(usedFunctions.get(functionNames.get(k))) used = functionList.get(k).matches(pattern);
+				}
+				if(used) {
+					usedCombos.put(comboNames.get(i), true);
+					change = true;
+				}
+			}
+			
+			for(int i = 0; i < usedFunctions.size(); i++) {
+				if(!usedFunctions.get(functionNames.get(i))) functionList.set(i, "");
+			}
+			for(int i = 0; i < usedCombos.size(); i++) {
+				if(!usedCombos.get(comboNames.get(i))) comboList.set(i, "");
+			}
+		}
+	}
+	
 	private void fixSemicolons() {
 		for(int i = 0; i < initCode.size(); i++) {
 			initCode.set(i, fixSemicolons(initCode.get(i)));
@@ -389,6 +457,7 @@ public class GPC {
 	private void fixErrors() {
 		replaceFunctionNames();
 		replaceComboNames();
+		removeUnusedFunctions();
 		fixSemicolons();
 	}
 	
