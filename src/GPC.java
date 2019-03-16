@@ -67,15 +67,19 @@ public class GPC {
 				if(currLine.startsWith("define "))  definedList.add(parseDefine(currLine));
 				else if(currLine.startsWith("unmap") || currLine.startsWith("map") || currLine.startsWith("remap")) mappingCode.add(parseMapping(currLine));
 				else if(currLine.startsWith("int ")) varList.add(parseVarType(currLine));
+				else if(currLine.startsWith("const ")) varList.add((parseCodeBlock(currLine, '{', '}') + ";").replaceAll("\\bbyte\\b", "int8"));	
 				else if(currLine.startsWith("init")) initCode.add(parseCodeBlock(currLine, '{', '}'));
 				else if(currLine.startsWith("main")) mainCode.add(parseCodeBlock(currLine, '{', '}'));
 				else if(currLine.startsWith("combo ")) comboList.add(parseCodeBlock(currLine, '{', '}'));
 				else if(currLine.startsWith("function ")) functionList.add(parseCodeBlock(currLine, '{', '}'));
 				else if(currLine.startsWith("data")) dataSegment = parseCodeBlock(currLine, '(', ')') + ";"; // will cause ; to trigger other
-				
 				else { // unknown line
+					int idx = currLine.indexOf(" ");
 					System.out.println("Other: " + currLine);
 					readIdx = currLine.length();
+					if(idx != -1) {
+						readIdx = idx+1;
+					}
 				}
 				
 				if(readIdx < currLine.length()) {
@@ -294,14 +298,14 @@ public class GPC {
 			for(int k = 0; k < mainCode.size() && !used; k++) used = mainCode.get(k).matches(pattern);
 			usedFunctions.put(functionNames.get(i), used);
 		}
-		
 		for(int i = 0; i < comboNames.size(); i++) {
 			boolean used = false;
 			String pattern = "(?s).*\\b" + comboNames.get(i) + "\\b.*";
 			for(int k = 0; k < initCode.size() && !used; k++) used = initCode.get(k).matches(pattern);
 			for(int k = 0; k < mainCode.size() && !used; k++) used = mainCode.get(k).matches(pattern);
 			usedCombos.put(comboNames.get(i), used);
-		}	
+		}
+		
 		while(change) {
 			change = false;
 			for(int i = 0; i < usedFunctions.size(); i++) {
