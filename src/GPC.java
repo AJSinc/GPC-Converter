@@ -262,7 +262,9 @@ public class GPC {
 				comboList.set(i, comboList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
 			}
 			for(int i = 0; i < functionList.size(); i++) {
+				functionList.set(i, functionList.get(i).replaceAll("\\bint\\b",""));
 				functionList.set(i, functionList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));	
+				
 			}
 		}
 		
