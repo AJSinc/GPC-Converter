@@ -7,29 +7,32 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 
 import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class GPCtoGPC2 {
 	
 	public static void main(String args[]) throws IOException {
 		
-		
 		File gpcFile = chooseFile();
-		if(gpcFile.exists()) {
-			//System.out.print(gpcFile.getAbsoluteFile());
+		if(gpcFile != null && gpcFile.exists()) {
+			System.out.print(gpcFile.getAbsoluteFile());
 			convert(gpcFile);
 		}
 		System.exit(0);
-		/*
-		File dir = new File(System.getProperty("user.dir"));
-		//File[] files = dir.listFiles((d, name) -> name.endsWith(".gpc"));
-		//for(int i = 0; i < files.length; i++) {
-			//if(!files[i].getName().contains(".gpc2"))
-				//convert(files[i]);
-		//}*/
 	}
 	
 	public static File chooseFile() {
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException
+				| UnsupportedLookAndFeelException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Erorr : " + e.toString());
+		}
 		JFileChooser chooser = new JFileChooser(System.getProperty("user.dir"));
 		FileNameExtensionFilter filter = new FileNameExtensionFilter("GPC Script files", "gpc");
 		chooser.setFileFilter(filter);
