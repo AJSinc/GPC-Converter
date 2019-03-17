@@ -32,6 +32,7 @@ public class GPCtoGPC2 {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			JOptionPane.showMessageDialog(null, "Erorr : " + e.toString());
+			return null;
 		}
 		JFileChooser chooser = new JFileChooser(System.getProperty("user.dir"));
 		FileNameExtensionFilter filter = new FileNameExtensionFilter("GPC Script files", "gpc");
