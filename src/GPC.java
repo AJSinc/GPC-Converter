@@ -18,6 +18,7 @@ public class GPC {
 	
 	private List<String> definedList;
 	private List<String> varList;
+	private List<String> varArrayList;
 	private List<String> mappingCode;
 	private List<String> initCode;
 	private List<String> mainCode;
@@ -31,6 +32,7 @@ public class GPC {
 	
 	public GPC(String s) {
 		definedList = new ArrayList<String>();
+		varArrayList = new ArrayList<String>();
 		varList = new ArrayList<String>();
 		mappingCode = new ArrayList<String>();
 		initCode = new ArrayList<String>();
@@ -67,7 +69,7 @@ public class GPC {
 				if(currLine.startsWith("define "))  definedList.add(parseDefine(currLine));
 				else if(currLine.startsWith("unmap") || currLine.startsWith("map") || currLine.startsWith("remap")) mappingCode.add(parseMapping(currLine));
 				else if(currLine.startsWith("int ")) varList.add(parseVarType(currLine));
-				else if(currLine.startsWith("const ")) varList.add((parseCodeBlock(currLine, '{', '}') + ";").replaceAll("\\bbyte\\b", "int8"));	
+				else if(currLine.startsWith("const ")) varArrayList.add((parseCodeBlock(currLine, '{', '}') + ";").replaceAll("\\bbyte\\b", "int8"));	
 				else if(currLine.startsWith("init")) initCode.add(parseCodeBlock(currLine, '{', '}'));
 				else if(currLine.startsWith("main")) mainCode.add(parseCodeBlock(currLine, '{', '}'));
 				else if(currLine.startsWith("combo ")) comboList.add(parseCodeBlock(currLine, '{', '}'));
@@ -80,10 +82,6 @@ public class GPC {
 					if(idx != -1) {
 						readIdx = idx+1;
 					}
-				}
-				
-				if(readIdx < currLine.length()) {
-					//System.out.println(currLine);
 				}
 			}
 		}
@@ -205,6 +203,7 @@ public class GPC {
 		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
 		s = s.replaceAll("\\bdata\\b", "\r\ndata");
 		s = s.replaceAll("\\s*;", ";");
+		s = s.replaceAll("(\\d+)\\.\\d+", "$1"); // no decimals in GPC1
 		return s;
 	}
 	
@@ -280,6 +279,51 @@ public class GPC {
 		return functionNames;
 	}
 
+	private void flattenMutlidimArrays() {
+		for(int i = 0; i < varArrayList.size(); i++) {
+			String currArray = varArrayList.get(i);
+			if(currArray.matches("(?s)\\s*const\\s+int8\\s+\\w+\\s*\\[.*\\]\\s*\\[.*\\].*")) {
+				String arrayName = currArray.replaceAll("(?s)\\s*const\\s+int8\\s+(\\w+)\\s*\\[.*\\]\\s*\\[.*\\].*", "$1");
+				String tmp = currArray.substring(0, currArray.indexOf("}"));
+				int secondDim = (tmp.length() - tmp.replace(",", "").length()) + 1;				
+				//remove extra { } and [][]
+				currArray = currArray.replaceAll("\\s*\\[\\s*\\]\\s*\\[\\s*\\]", "[]");
+				currArray = currArray.replaceAll("\\{|\\}", "").replaceAll("=", "= {").replaceAll(";", " };");
+				varArrayList.set(i, currArray);
+				
+				String pattern = arrayName + "\\s*\\[(.*)\\]\\s*\\[(.*)\\]";
+				String replacePattern = arrayName + "[(" + secondDim + " \\* $1) + ($2)]";
+				for(int k = 0; k < initCode.size(); k++) {
+					initCode.set(k, initCode.get(k).replaceAll(pattern, replacePattern));
+				}
+				for(int k = 0; k < mainCode.size(); k++) {
+					mainCode.set(k, mainCode.get(k).replaceAll(pattern, replacePattern));
+				}
+				for(int k = 0; k < comboList.size(); k++) {
+					comboList.set(k, comboList.get(k).replaceAll(pattern, replacePattern));
+				}
+				for(int k = 0; k < functionList.size(); k++) {
+					functionList.set(k, functionList.get(k).replaceAll(pattern, replacePattern));
+				}
+			}
+		}
+	}
+	
+	private Map<String, Integer> getMutlidimArrays() {
+		Map<String, Integer> arrayMap = new HashMap<String, Integer>();
+		for(int i = 0; i < varArrayList.size(); i++) {
+			String currArray = varArrayList.get(i);
+			if(currArray.matches("(?s)\\s*const\\s+int8\\s+\\w+\\s*\\[.*\\]\\s*\\[.*\\].*")) {
+				String arrayName = currArray.replaceAll("(?s)\\s*const\\s+int8\\s+(\\w+)\\s*\\[.*\\]\\s*\\[.*\\].*", "$1");
+				String tmp = currArray.substring(0, currArray.indexOf("}"));
+				int secondDim = (tmp.length() - tmp.replace(",", "").length()) + 1;
+				System.out.println("array: " + arrayName);
+				arrayMap.put(arrayName.trim(), secondDim);
+			}
+		}
+		return arrayMap;
+	}
+	
 	private void removeUnusedFunctions() { 
 		List<String> functionNames = getFunctionNames();
 		List<String> comboNames = getComboNames();
@@ -364,11 +408,8 @@ public class GPC {
 	}
 	
 	private String fixSemicolons(String s) {
-		//String[] k = ss.split("\\b|(?=\\)?)|(?=\\(?)");
 		// splits by ( ) { } ; , and var start/end
 		List<String> tmp = new ArrayList<String>(Arrays.asList(s.split("\\b|(?=\\))|(?=\\()|(?<=\\))|(?<=\\()|(?=\\;)|(?<=\\;)|(?=\\})|(?<=\\})|(?=\\{)|(?<=\\{)|(?=\\,)|(?<=\\,)")));
-		//for(int i = 0; i < tmp.size(); i++)
-			//System.out.println(i + " " + tmp.get(i).trim().replaceAll("\\s*", ""));
 		return fixSemicolons(tmp, false, false, 0, false);
 	}
 	
@@ -453,7 +494,6 @@ public class GPC {
 			prevOp = false;
 		}
 		codeBlock.remove(0); // pop first off
-		//System.out.print(fixedStr);
 		return fixedStr + fixSemicolons(codeBlock, prevOp, prevVar, parenCount, oneLineIf);
 	}
 	
@@ -461,6 +501,7 @@ public class GPC {
 		replaceFunctionNames();
 		replaceComboNames();
 		removeUnusedFunctions();
+		flattenMutlidimArrays();
 		fixSemicolons();
 	}
 	
@@ -468,6 +509,7 @@ public class GPC {
 		String str = "";
 		str += String.join("\r\n", definedList) + "\r\n\r\n";
 		str += String.join("\r\n", mappingCode) + "\r\n\r\n";
+		str += String.join("\r\n", varArrayList) + "\r\n\r\n";
 		str += String.join("\r\n", varList) + "\r\n\r\n";
 		str += String.join("\r\n", initCode) + "\r\n\r\n";
 		str += String.join("\r\n", mainCode) + "\r\n\r\n";
