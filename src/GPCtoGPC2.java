@@ -18,7 +18,6 @@ public class GPCtoGPC2 {
 		
 		File gpcFile = chooseFile();
 		if(gpcFile != null && gpcFile.exists()) {
-			System.out.print(gpcFile.getAbsoluteFile());
 			convert(gpcFile);
 		}
 		System.exit(0);
@@ -43,17 +42,15 @@ public class GPCtoGPC2 {
 		return null;
 	}
 	
-	
 	public static void convert(File gpcFile) throws FileNotFoundException, IOException {
 		GPC newGPC = new GPC(gpcFile.getCanonicalPath());
 		
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "gpc2.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.11\"))\r\n");
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.14\"))\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n");
 		
 		writer.write(newGPC.toString());
 		writer.close();
 	}
-	
 	
 }
