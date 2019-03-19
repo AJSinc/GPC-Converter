@@ -10,6 +10,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+
+import javax.swing.JOptionPane;
+
 import java.util.HashMap;
 
 public class GPC {
@@ -42,7 +45,15 @@ public class GPC {
 		dataSegment = "";
 		gpcFilePath = s;
 		
-		readAll();
+		try {
+			readAll();
+		}
+		catch(Exception e) {
+			JOptionPane.showMessageDialog(null, "Error converting script (" + gpcFilePath + ").\r\n"
+					+ "Please check the file and try again.\r\n\r\n" 
+					+ e.toString());
+			System.exit(0);
+		}
 	}
 	
 	public String getRawGPCCode() {
@@ -292,7 +303,7 @@ public class GPC {
 				varArrayList.set(i, currArray);
 				
 				String pattern = arrayName + "\\s*\\[(.*)\\]\\s*\\[(.*)\\]";
-				String replacePattern = arrayName + "[(" + secondDim + " \\* $1) + ($2)]";
+				String replacePattern = arrayName + "[(" + secondDim + " \\* ($1)) + ($2)]";
 				for(int k = 0; k < initCode.size(); k++) {
 					initCode.set(k, initCode.get(k).replaceAll(pattern, replacePattern));
 				}
@@ -309,6 +320,7 @@ public class GPC {
 		}
 	}
 	
+	/*
 	private Map<String, Integer> getMutlidimArrays() {
 		Map<String, Integer> arrayMap = new HashMap<String, Integer>();
 		for(int i = 0; i < varArrayList.size(); i++) {
@@ -323,6 +335,7 @@ public class GPC {
 		}
 		return arrayMap;
 	}
+	*/
 	
 	private void removeUnusedFunctions() { 
 		List<String> functionNames = getFunctionNames();
@@ -410,73 +423,87 @@ public class GPC {
 	private String fixSemicolons(String s) {
 		// splits by ( ) { } ; , and var start/end
 		List<String> tmp = new ArrayList<String>(Arrays.asList(s.split("\\b|(?=\\))|(?=\\()|(?<=\\))|(?<=\\()|(?=\\;)|(?<=\\;)|(?=\\})|(?<=\\})|(?=\\{)|(?<=\\{)|(?=\\,)|(?<=\\,)")));
-		return fixSemicolons(tmp, false, false, 0, false);
+		for(int i = tmp.size() - 1; i >= 0; i--) {
+			tmp.set(i, tmp.get(i).trim().replaceAll("\\s", ""));
+			if(tmp.get(i).isEmpty()) {
+				tmp.remove(i);
+			}
+		}
+		return fixSemicolons(tmp, false, 0, false);
 	}
 	
-	//Strictly recursive helper function
-	private String fixSemicolons(List<String> codeBlock, boolean prevOp, boolean prevVar, int parenCount, boolean oneLineIf) {
+	//Strictly recursive helper function OPTIMIZE 
+	private String fixSemicolons(List<String> codeBlock, boolean prevVar, int parenCount, boolean oneLineIf) {
 		if(codeBlock.isEmpty()) return "";
-		String fixedStr = codeBlock.get(0).trim().replaceAll("\\s", "");
+		String fixedStr = codeBlock.get(0);
 		
 		if(fixedStr.isEmpty()) { } // Empty line
-		else if(fixedStr.matches("\\s*(main|function|combo|init)\\s*")) { // matches start of stuff
+		else if(fixedStr.matches("(main|function|combo|init)")) { // matches start of stuff
 			fixedStr = fixedStr + " ";
 			if(fixedStr.equals("combo ")) {
-				fixedStr = fixedStr + codeBlock.get(2) ;
-				codeBlock.remove(2);
+				fixedStr = fixedStr + codeBlock.get(1) ;
+				codeBlock.remove(1);
 			}
+			while(!codeBlock.get(1).equals("{")) {
+				fixedStr += codeBlock.get(1) + "";
+				codeBlock.remove(1);
+			}
+			fixedStr += codeBlock.get(1) + "\r\n";
+			codeBlock.remove(1);
 		}
 		else if(fixedStr.matches("\\(")) {
 			if(parenCount <= 0) parenCount = 0;
 			parenCount++;
 			prevVar = false;
-			prevOp = true;
 		}
 		else if(fixedStr.matches((".*(\\[|\\]).*"))) {
 			prevVar = false;
-			prevOp = false;
 		}
 		else if(fixedStr.matches("\\)")) {
 			parenCount--;
 			prevVar = true;
-			prevOp = false;
 			if(parenCount == 0) {
 				parenCount = -1; // paren just ended
 			}
 		}
 		else if(fixedStr.matches("\\;")) {
 			fixedStr = fixedStr + "\r\n";
+			oneLineIf = false;
 			prevVar = false;
-			prevOp = true;
 		}
 		else if(fixedStr.matches(("return"))) {
-			fixedStr += " ";
+			fixedStr += (codeBlock.get(1).trim().replaceAll("\\s", "").matches("\\}") ? ";\r\n" : " ");
 			prevVar = false;
-			prevOp = false;
 		}
-		else if(fixedStr.matches("\\s*(if|else)\\s*")) { // if statement
+		else if(fixedStr.matches("(if|else)")) { // if statement
 			if(prevVar) fixedStr = ";\r\n" + fixedStr;
 			fixedStr += " ";
 			oneLineIf = true;
 		}
 		else if(fixedStr.matches("(\\{|\\}|\\!)")) { // { } !
 			if(fixedStr.equals("{")) {
+				if(!oneLineIf) { // remove random { }
+					fixedStr = "";
+					int i = 1;
+					while(!codeBlock.get(i).equals("}")) {
+						i++;
+					}
+					codeBlock.remove(i);
+				}
+				else fixedStr += "\r\n";
 				oneLineIf = false;
-				fixedStr += "\r\n";
 			}
 			if(fixedStr.equals("}")) {
 				fixedStr = (prevVar ? ";" : "") + "\r\n" + fixedStr + "\r\n";
 			}
 			else if(prevVar && parenCount != -1) fixedStr = ";\r\n" + fixedStr;
 			prevVar = false;
-			prevOp = true;
 		}
 		else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\&|\\||\\=|\\!|\\^|\\>|\\<).*")) { 
 			if(fixedStr.length() > 1) {
 				codeBlock.add(1, fixedStr.substring(1));
 				fixedStr = "" + fixedStr.charAt(0);
 			}
-			prevOp = true;
 			prevVar = false;
 		}
 		else {
@@ -491,10 +518,9 @@ public class GPC {
 			}
 			
 			prevVar = true;
-			prevOp = false;
 		}
 		codeBlock.remove(0); // pop first off
-		return fixedStr + fixSemicolons(codeBlock, prevOp, prevVar, parenCount, oneLineIf);
+		return fixedStr + fixSemicolons(codeBlock, prevVar, parenCount, oneLineIf);
 	}
 	
 	private void fixErrors() {
@@ -507,15 +533,16 @@ public class GPC {
 	
 	public String toString() {
 		String str = "";
-		str += String.join("\r\n", definedList) + "\r\n\r\n";
-		str += String.join("\r\n", mappingCode) + "\r\n\r\n";
-		str += String.join("\r\n", varArrayList) + "\r\n\r\n";
-		str += String.join("\r\n", varList) + "\r\n\r\n";
-		str += String.join("\r\n", initCode) + "\r\n\r\n";
-		str += String.join("\r\n", mainCode) + "\r\n\r\n";
-		str += String.join("\r\n", comboList) + "\r\n\r\n";
-		str += String.join("\r\n", functionList) + "\r\n\r\n";
-		str += dataSegment;
+		String dEndLine = "\r\n\r\n";
+		str += String.join("\r\n", definedList) + ((definedList.isEmpty()) ? "" : dEndLine);
+		str += dataSegment + ((dataSegment.length() == 0) ? "" : dEndLine);
+		str += String.join("\r\n", mappingCode) + ((mappingCode.isEmpty()) ? "" : dEndLine);
+		str += String.join("\r\n", varArrayList) + ((varArrayList.isEmpty()) ? "" : dEndLine);
+		str += String.join("\r\n", varList) + ((varList.isEmpty()) ? "" : dEndLine);
+		str += String.join("\r\n", initCode) + ((initCode.isEmpty()) ? "" : dEndLine);
+		str += String.join("\r\n", mainCode) + ((mainCode.isEmpty()) ? "" : dEndLine);
+		str += String.join("\r\n", comboList) + ((comboList.isEmpty()) ? "" : dEndLine);
+		str += String.join("\r\n", functionList) + ((functionList.isEmpty()) ? "" : dEndLine);
 		str = fortmatCode(str);
 		fixSemicolons("");
 		return str;
