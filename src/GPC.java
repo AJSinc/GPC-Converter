@@ -475,7 +475,7 @@ public class GPC {
 			fixedStr += (codeBlock.get(1).trim().replaceAll("\\s", "").matches("\\}") ? ";\r\n" : " ");
 			prevVar = false;
 		}
-		else if(fixedStr.matches("(if|else)")) { // if statement
+		else if(fixedStr.matches("(for|while|if|else)")) { // containing conditional statements
 			if(prevVar) fixedStr = ";\r\n" + fixedStr;
 			fixedStr += " ";
 			oneLineIf = true;
