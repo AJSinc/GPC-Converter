@@ -516,6 +516,7 @@ public class GPC {
 		str += String.join("\r\n", comboList) + "\r\n\r\n";
 		str += String.join("\r\n", functionList) + "\r\n\r\n";
 		str += dataSegment;
+		str = fortmatCode(str);
 		fixSemicolons("");
 		return str;
 	}
@@ -586,6 +587,35 @@ public class GPC {
 	private static String trimSpacing(String s) {
 		if(s.isEmpty()) return "";
 		return s.trim().replaceAll("(\\s+)"," ");
+	}
+	
+	public static String fortmatCode(String s) {
+		int braceCount = 0;
+		String newStr = "";
+		s = s.replaceAll("\r\n\\s*\r\n\\}", "\r\n\\}"); // replace blank line followed by }
+		s = s.replaceAll("\\s*\\{", " {"); // set all { 1 from previous
+		s = s.replaceAll(",", ", "); // put space after commas
+		s = s.replaceAll("\\)\\s*\\{", ") {");
+		for(int i = 0; i < s.length(); i++) {
+			char currChar = s.charAt(i);
+			if(currChar == '{') braceCount++;
+			else if(currChar == '}') {
+				if(newStr.charAt(newStr.length()-1) == '\t') 
+					newStr = newStr.substring(0 , newStr.length()-1);
+				braceCount--;
+			}
+			
+			newStr += ("" + currChar);
+			
+			if(currChar == '\n') {
+				for(int k = 0; k < braceCount; k++) {
+					newStr += '\t';
+				}
+			}
+			
+			
+		}
+		return newStr;
 	}
 	
 }
