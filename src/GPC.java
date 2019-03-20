@@ -302,7 +302,7 @@ public class GPC {
 				currArray = currArray.replaceAll("\\{|\\}", "").replaceAll("=", "= {").replaceAll(";", " };");
 				varArrayList.set(i, currArray);
 				
-				String pattern = arrayName + "\\s*\\[(.*)\\]\\s*\\[(.*)\\]";
+				String pattern = arrayName + "\\s*\\[(.*?)\\]\\s*\\[(.*?)\\]";
 				String replacePattern = arrayName + "[(" + secondDim + " \\* ($1)) + ($2)]";
 				for(int k = 0; k < initCode.size(); k++) {
 					initCode.set(k, initCode.get(k).replaceAll(pattern, replacePattern));
@@ -429,100 +429,107 @@ public class GPC {
 				tmp.remove(i);
 			}
 		}
-		return fixSemicolons(tmp, false, 0, false);
+		return fixSemicolons(tmp);
+		//return fixSemicolons(tmp, false, 0, false);
 	}
 	
-	//Strictly recursive helper function OPTIMIZE 
-	private String fixSemicolons(List<String> codeBlock, boolean prevVar, int parenCount, boolean oneLineIf) {
-		if(codeBlock.isEmpty()) return "";
-		String fixedStr = codeBlock.get(0);
-		
-		if(fixedStr.isEmpty()) { } // Empty line
-		else if(fixedStr.matches("(main|function|combo|init)")) { // matches start of stuff
-			fixedStr = fixedStr + " ";
-			if(fixedStr.equals("combo ")) {
-				fixedStr = fixedStr + codeBlock.get(1) ;
-				codeBlock.remove(1);
-			}
-			while(!codeBlock.get(1).equals("{")) {
-				fixedStr += codeBlock.get(1) + "";
-				codeBlock.remove(1);
-			}
-			fixedStr += codeBlock.get(1) + "\r\n";
-			codeBlock.remove(1);
-		}
-		else if(fixedStr.matches("\\(")) {
-			if(parenCount <= 0) parenCount = 0;
-			parenCount++;
-			prevVar = false;
-		}
-		else if(fixedStr.matches((".*(\\[|\\]).*"))) {
-			prevVar = false;
-		}
-		else if(fixedStr.matches("\\)")) {
-			parenCount--;
-			prevVar = true;
-			if(parenCount == 0) {
-				parenCount = -1; // paren just ended
-			}
-		}
-		else if(fixedStr.matches("\\;")) {
-			fixedStr = fixedStr + "\r\n";
-			oneLineIf = false;
-			prevVar = false;
-		}
-		else if(fixedStr.matches(("return"))) {
-			fixedStr += (codeBlock.get(1).trim().replaceAll("\\s", "").matches("\\}") ? ";\r\n" : " ");
-			prevVar = false;
-		}
-		else if(fixedStr.matches("(for|while|if|else)")) { // containing conditional statements
-			if(prevVar) fixedStr = ";\r\n" + fixedStr;
-			fixedStr += " ";
-			oneLineIf = true;
-		}
-		else if(fixedStr.matches("(\\{|\\}|\\!)")) { // { } !
-			if(fixedStr.equals("{")) {
-				if(!oneLineIf) { // remove random { }
-					fixedStr = "";
-					int i = 1;
-					while(!codeBlock.get(i).equals("}")) {
-						i++;
-					}
-					codeBlock.remove(i);
+	private String fixSemicolons(List<String> codeBlock) {
+		String newStr = "";
+		boolean prevVar = false, oneLineIf = false;
+		int parenCount = 0;
+		while(!codeBlock.isEmpty()) {
+			String fixedStr = codeBlock.get(0);
+			if(fixedStr.isEmpty()) { } // Empty line
+			else if(fixedStr.matches("(main|function|combo|init)")) { // matches start of stuff
+				fixedStr = fixedStr + " ";
+				while(!codeBlock.get(1).equals("{")) {
+					fixedStr += codeBlock.get(1) + "";
+					codeBlock.remove(1);
 				}
-				else fixedStr += "\r\n";
-				oneLineIf = false;
+				fixedStr += codeBlock.get(1) + "\r\n";
+				codeBlock.remove(1);
 			}
-			if(fixedStr.equals("}")) {
-				fixedStr = (prevVar ? ";" : "") + "\r\n" + fixedStr + "\r\n";
+			else if(fixedStr.matches("\\(")) {
+				if(parenCount <= 0) parenCount = 0;
+				parenCount++;
+				prevVar = false;
 			}
-			else if(prevVar && parenCount != -1) fixedStr = ";\r\n" + fixedStr;
-			prevVar = false;
+			else if(fixedStr.matches((".*(\\[|\\]).*"))) {
+				prevVar = false;
+			}
+			else if(fixedStr.matches("\\)")) {
+				parenCount--;
+				prevVar = true;
+				if(parenCount == 0) {
+					parenCount = -1; // paren just ended
+				}
+			}
+			else if(fixedStr.matches("\\;")) {
+				if(parenCount <= 0)  { // for loop conditions
+					fixedStr +=  "\r\n";
+					oneLineIf = false;
+				}
+				else fixedStr += " ";
+				prevVar = false;
+			}
+			else if(fixedStr.matches(("return"))) {
+				fixedStr += (codeBlock.get(1).trim().replaceAll("\\s", "").matches("\\}") ? ";\r\n" : " ");
+				prevVar = false;
+				if(oneLineIf) {
+					fixedStr = "\r\n\t" + fixedStr;
+					oneLineIf = false;
+				}
+			}
+			else if(fixedStr.matches("(for|while|if|else)")) { // containing conditional statements
+				if(prevVar) fixedStr = ";\r\n" + fixedStr;
+				fixedStr += " ";
+				oneLineIf = true;
+			}
+			else if(fixedStr.matches("(\\{|\\}|\\!)")) { // { } !
+				if(fixedStr.equals("{")) {
+					if(!oneLineIf) { // remove random { }
+						fixedStr = "";
+						int i = 1;
+						while(!codeBlock.get(i).equals("}")) {
+							i++;
+						}
+						codeBlock.remove(i);
+					}
+					else fixedStr += "\r\n";
+					oneLineIf = false;
+				}
+				if(fixedStr.equals("}")) {
+					fixedStr = (prevVar ? ";" : "") + "\r\n" + fixedStr + "\r\n";
+				}
+				else if(prevVar && parenCount != -1) fixedStr = ";\r\n" + fixedStr;
+				prevVar = false;
+			}
+			else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\&|\\||\\=|\\!|\\^|\\>|\\<).*")) { 
+				if(fixedStr.length() > 1) {
+					codeBlock.add(1, fixedStr.substring(1));
+					fixedStr = "" + fixedStr.charAt(0);
+				}
+				prevVar = false;
+			}
+			else {
+				if(oneLineIf && parenCount <= 0) {
+					fixedStr = "\r\n\t" + fixedStr;
+					oneLineIf = false;
+				}
+				else if(prevVar) {
+					if(!fixedStr.matches("^[0-9]*$"))
+						fixedStr = ";\r\n" + fixedStr;
+					else fixedStr = "";
+				}
+				
+				prevVar = true;
+			}
+			codeBlock.remove(0); // pop first off
+			newStr += fixedStr;
 		}
-		else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\&|\\||\\=|\\!|\\^|\\>|\\<).*")) { 
-			if(fixedStr.length() > 1) {
-				codeBlock.add(1, fixedStr.substring(1));
-				fixedStr = "" + fixedStr.charAt(0);
-			}
-			prevVar = false;
-		}
-		else {
-			if(oneLineIf && parenCount <= 0) {
-				fixedStr = "\r\n\t" + fixedStr;
-				oneLineIf = false;
-			}
-			else if(prevVar) {
-				if(!fixedStr.matches("^[0-9]*$"))
-					fixedStr = ";\r\n" + fixedStr;
-				else fixedStr = "";
-			}
-			
-			prevVar = true;
-		}
-		codeBlock.remove(0); // pop first off
-		return fixedStr + fixSemicolons(codeBlock, prevVar, parenCount, oneLineIf);
+		return newStr;
 	}
-	
+
 	private void fixErrors() {
 		replaceFunctionNames();
 		replaceComboNames();
@@ -544,7 +551,6 @@ public class GPC {
 		str += String.join("\r\n", comboList) + ((comboList.isEmpty()) ? "" : dEndLine);
 		str += String.join("\r\n", functionList) + ((functionList.isEmpty()) ? "" : dEndLine);
 		str = fortmatCode(str);
-		fixSemicolons("");
 		return str;
 	}
 
