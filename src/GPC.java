@@ -221,7 +221,7 @@ public class GPC {
 	private void replaceComboNames() {
 		if(comboList.isEmpty()) return;
 		List<String> comboNames = getComboNames();
-		String pattern = "(combo_run|combo_running|combo_stop|combo_restart|call)\\s*\\(\\s*";
+		String pattern = "(combo_run|combo_running|combo_stop|combo_restart|combo_suspend|combo_suspended|call)\\s*\\(\\s*";
 		
 		for(int k = 0; k < comboNames.size(); k++) {
 			String cPattern = pattern + comboNames.get(k) + "\\s*\\)";
@@ -402,7 +402,7 @@ public class GPC {
 			for(int i = 0; i < usedCombos.size(); i++) {
 				if(!usedCombos.get(comboNames.get(i))) {
 					String pattern = "\\b(combo_running|combo_suspended)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)";
-					String pattern2 = "\\b(combo_suspend|combo_stop)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)";
+					String pattern2 = "\\b(combo_suspend|combo_stop)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)\\s*(;|\\s*)";
 					for(int k = 0; k < mainCode.size(); k++)  {
 						mainCode.set(k, mainCode.get(k).replaceAll(pattern, "FALSE"));
 						mainCode.set(k, mainCode.get(k).replaceAll(pattern2, ""));
