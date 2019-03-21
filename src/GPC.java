@@ -356,7 +356,7 @@ public class GPC {
 		}
 		for(int i = 0; i < comboNames.size(); i++) {
 			boolean used = false;
-			String pattern = "(?s).*\\b" + comboNames.get(i) + "\\b.*";
+			String pattern = "(?s).*\\b(combo_run|call)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b.*";
 			for(int k = 0; k < initCode.size() && !used; k++) used = initCode.get(k).matches(pattern);
 			for(int k = 0; k < mainCode.size() && !used; k++) used = mainCode.get(k).matches(pattern);
 			usedCombos.put(comboNames.get(i), used);
@@ -382,7 +382,7 @@ public class GPC {
 			
 			for(int i = 0; i < usedCombos.size(); i++) {
 				if(usedCombos.get(comboNames.get(i))) continue;
-				String pattern = "(?s).*\\b" + comboNames.get(i) + "\\b.*";
+				String pattern = "(?s).*\\b(combo_run|call|combo_restart)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b.*";
 				boolean used = false;
 				for(int k = 0; k < comboList.size() && !used; k++) {
 					if(usedCombos.get(comboNames.get(k))) used = comboList.get(k).matches(pattern);
@@ -400,7 +400,27 @@ public class GPC {
 				if(!usedFunctions.get(functionNames.get(i))) functionList.set(i, "");
 			}
 			for(int i = 0; i < usedCombos.size(); i++) {
-				if(!usedCombos.get(comboNames.get(i))) comboList.set(i, "");
+				if(!usedCombos.get(comboNames.get(i))) {
+					String pattern = "\\b(combo_running|combo_suspended)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)";
+					String pattern2 = "\\b(combo_suspend|combo_stop)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)";
+					for(int k = 0; k < mainCode.size(); k++)  {
+						mainCode.set(k, mainCode.get(k).replaceAll(pattern, "FALSE"));
+						mainCode.set(k, mainCode.get(k).replaceAll(pattern2, ""));
+					}
+					for(int k = 0; k < initCode.size(); k++)  {
+						initCode.set(k, initCode.get(k).replaceAll(pattern, "FALSE"));
+						initCode.set(k, initCode.get(k).replaceAll(pattern2, ""));
+					}
+					for(int k = 0; k < comboList.size(); k++) {
+						comboList.set(k, comboList.get(k).replaceAll(pattern, "FALSE"));
+						comboList.set(k, comboList.get(k).replaceAll(pattern2, ""));
+					}
+					for(int k = 0; k < functionList.size(); k++) {
+						functionList.set(k, functionList.get(k).replaceAll(pattern, "FALSE"));
+						functionList.set(k, functionList.get(k).replaceAll(pattern2, ""));
+					}
+					comboList.set(i, "");
+				}
 			}
 		}
 	}
