@@ -185,62 +185,20 @@ public class GPC {
 		codeBlockBraceCount = 0;
 		return parsedStr;
 	}
-
-	private static String replaceKeywords(String s) {
-		File tmpDir = new File(System.getProperty("user.dir") + "\\keywords.db");
-		if(tmpDir.exists()) {
-			try {
-				Scanner kwSc = new Scanner(tmpDir);
-				while(kwSc.hasNextLine()) {
-					String str = trimSpacing(kwSc.nextLine());
-					s = s.replaceAll("\\b" + str + "\\b", "t1_" + str);
-				}
-				kwSc.close();
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		s = s.replaceAll("\\s*combo\\s+(\\w+)\\W+\\{", "combo $1 \\{");
-		s = s.replaceAll((":"), (" ")); // : = ; in CM lool
-		s = s.replaceAll("main\\s*\\{", "main\\{");
-		s = s.replaceAll("init\\s*\\{", "init\\{");
-		s = s.replaceAll("data\\s*\\(", "data\\(");
-		s = s.replaceAll("\\bdefine\\b", "\r\ndefine");
-		s = s.replaceAll("\\bint\\b", "\r\nint");
-		s = s.replaceAll("\\binit\\b", "\r\ninit");
-		s = s.replaceAll("\\bmain\\b", "\r\nmain");
-		s = s.replaceAll("\\bcombo\\b", "\r\ncombo");
-		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
-		s = s.replaceAll("\\bdata\\b", "\r\ndata");
-		s = s.replaceAll("\\s*;", ";");
-		s = s.replaceAll("(\\d+)\\.\\d+", "$1"); // no decimals in GPC1
-		return s;
-	}
 	
 	private void replaceComboNames() {
 		if(comboList.isEmpty()) return;
 		List<String> comboNames = getComboNames();
 		String pattern = "(combo_run|combo_running|combo_stop|combo_restart|combo_suspend|combo_suspended|call)\\s*\\(\\s*";
-		
 		for(int k = 0; k < comboNames.size(); k++) {
 			String cPattern = pattern + comboNames.get(k) + "\\s*\\)";
-			for(int i = 0; i < initCode.size(); i++) {
-				initCode.set(i, initCode.get(i).replaceAll(cPattern, " $1\\(c_" + comboNames.get(k)+ "\\)"));
-			}
-			for(int i = 0; i < mainCode.size(); i++) {
-				mainCode.set(i, mainCode.get(i).replaceAll(cPattern, " $1\\(c_" + comboNames.get(k)+ "\\)"));
-			}
-			for(int i = 0; i < comboList.size(); i++) {
-				comboList.set(i, comboList.get(i).replaceAll(cPattern, " $1\\(c_" + comboNames.get(k) + "\\)"));
-				comboList.set(i, comboList.get(i).replaceAll("\\s*combo\\s*" + comboNames.get(k) + "\\s*\\{", "combo c_" + comboNames.get(k) + "\\{"));
-			}
-			for(int i = 0; i < functionList.size(); i++) {
-				functionList.set(i, functionList.get(i).replaceAll(cPattern, " $1\\(c_" + comboNames.get(k)+ "\\)"));
-			}
+			String replacePattern = " $1\\(c_" + comboNames.get(k)+ "\\)";
+			replaceAllInList(initCode, cPattern, replacePattern);
+			replaceAllInList(mainCode, cPattern, replacePattern);
+			replaceAllInList(comboList, cPattern, replacePattern);
+			replaceAllInList(comboList,"\\s*combo\\s*" + comboNames.get(k) + "\\s*\\{", "combo c_" + comboNames.get(k) + "\\{");
+			replaceAllInList(functionList, cPattern, replacePattern);
 		}
-		
-		
 	}
 	
 	private List<String> getComboNames() {
@@ -260,20 +218,13 @@ public class GPC {
 		if(functionList.isEmpty()) return;
 		List<String> functionNames = getFunctionNames();
 		for(int k = 0; k < functionNames.size(); k++) {
-			String pattern = "\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(";
-			for(int i = 0; i < initCode.size(); i++) {
-				initCode.set(i, initCode.get(i).replaceAll(pattern, " f_" + functionNames.get(k) + "\\("));
-			}
-			for(int i = 0; i < mainCode.size(); i++) {
-				mainCode.set(i, mainCode.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
-			}
-			for(int i = 0; i < comboList.size(); i++) {
-				comboList.set(i, comboList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));
-			}
-			for(int i = 0; i < functionList.size(); i++) {
-				functionList.set(i, functionList.get(i).replaceAll("\\bint\\b",""));
-				functionList.set(i, functionList.get(i).replaceAll("\\b\\s*" + functionNames.get(k) + "\\b\\s*\\(", " f_" + functionNames.get(k) + "\\("));	
-			}
+			String pattern = "\\b" + functionNames.get(k) + "\\b\\s*\\(";
+			String replacePattern = " f_" + functionNames.get(k) + "\\(";
+			replaceAllInList(initCode, pattern, replacePattern);
+			replaceAllInList(mainCode, pattern, replacePattern);
+			replaceAllInList(comboList, pattern, replacePattern);
+			replaceAllInList(functionList, pattern, replacePattern);
+			replaceAllInList(functionList, "\\bint\\b", "");	
 		}
 	}
 	
@@ -289,7 +240,7 @@ public class GPC {
 		}
 		return functionNames;
 	}
-
+	
 	private void flattenMutlidimArrays() {
 		for(int i = 0; i < varArrayList.size(); i++) {
 			String currArray = varArrayList.get(i);
@@ -304,38 +255,13 @@ public class GPC {
 				
 				String pattern = arrayName + "\\s*\\[(.*?)\\]\\s*\\[(.*?)\\]";
 				String replacePattern = arrayName + "[(" + secondDim + " \\* ($1)) + ($2)]";
-				for(int k = 0; k < initCode.size(); k++) {
-					initCode.set(k, initCode.get(k).replaceAll(pattern, replacePattern));
-				}
-				for(int k = 0; k < mainCode.size(); k++) {
-					mainCode.set(k, mainCode.get(k).replaceAll(pattern, replacePattern));
-				}
-				for(int k = 0; k < comboList.size(); k++) {
-					comboList.set(k, comboList.get(k).replaceAll(pattern, replacePattern));
-				}
-				for(int k = 0; k < functionList.size(); k++) {
-					functionList.set(k, functionList.get(k).replaceAll(pattern, replacePattern));
-				}
+				replaceAllInList(initCode, pattern, replacePattern);
+				replaceAllInList(mainCode, pattern, replacePattern);
+				replaceAllInList(comboList, pattern, replacePattern);
+				replaceAllInList(functionList, pattern, replacePattern);
 			}
 		}
 	}
-	
-	/*
-	private Map<String, Integer> getMutlidimArrays() {
-		Map<String, Integer> arrayMap = new HashMap<String, Integer>();
-		for(int i = 0; i < varArrayList.size(); i++) {
-			String currArray = varArrayList.get(i);
-			if(currArray.matches("(?s)\\s*const\\s+int8\\s+\\w+\\s*\\[.*\\]\\s*\\[.*\\].*")) {
-				String arrayName = currArray.replaceAll("(?s)\\s*const\\s+int8\\s+(\\w+)\\s*\\[.*\\]\\s*\\[.*\\].*", "$1");
-				String tmp = currArray.substring(0, currArray.indexOf("}"));
-				int secondDim = (tmp.length() - tmp.replace(",", "").length()) + 1;
-				System.out.println("array: " + arrayName);
-				arrayMap.put(arrayName.trim(), secondDim);
-			}
-		}
-		return arrayMap;
-	}
-	*/
 	
 	private void removeUnusedFunctions() { 
 		List<String> functionNames = getFunctionNames();
@@ -345,8 +271,6 @@ public class GPC {
 		
 		boolean change = true;
 		// check init and main for used combos/functions
-	
-
 		for(int i = 0; i < functionNames.size(); i++) {
 			boolean used = false;
 			String pattern = "(?s).*\\b" + functionNames.get(i) + "\\b.*";
@@ -403,22 +327,14 @@ public class GPC {
 				if(!usedCombos.get(comboNames.get(i))) {
 					String pattern = "\\b(combo_running|combo_suspended)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)";
 					String pattern2 = "\\b(combo_suspend|combo_stop)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)\\s*(;|\\s*)";
-					for(int k = 0; k < mainCode.size(); k++)  {
-						mainCode.set(k, mainCode.get(k).replaceAll(pattern, "FALSE"));
-						mainCode.set(k, mainCode.get(k).replaceAll(pattern2, ""));
-					}
-					for(int k = 0; k < initCode.size(); k++)  {
-						initCode.set(k, initCode.get(k).replaceAll(pattern, "FALSE"));
-						initCode.set(k, initCode.get(k).replaceAll(pattern2, ""));
-					}
-					for(int k = 0; k < comboList.size(); k++) {
-						comboList.set(k, comboList.get(k).replaceAll(pattern, "FALSE"));
-						comboList.set(k, comboList.get(k).replaceAll(pattern2, ""));
-					}
-					for(int k = 0; k < functionList.size(); k++) {
-						functionList.set(k, functionList.get(k).replaceAll(pattern, "FALSE"));
-						functionList.set(k, functionList.get(k).replaceAll(pattern2, ""));
-					}
+					replaceAllInList(mainCode, pattern, "FALSE");
+					replaceAllInList(mainCode, pattern2, "");
+					replaceAllInList(initCode, pattern, "FALSE");
+					replaceAllInList(initCode, pattern2, "");
+					replaceAllInList(comboList, pattern, "FALSE");
+					replaceAllInList(comboList, pattern2, "");
+					replaceAllInList(functionList, pattern, "FALSE");
+					replaceAllInList(functionList, pattern2, "");
 					comboList.set(i, "");
 				}
 			}
@@ -430,10 +346,10 @@ public class GPC {
 			initCode.set(i, fixSemicolons(initCode.get(i)));
 		}
 		for(int i = 0; i < mainCode.size(); i++) {
-				mainCode.set(i, fixSemicolons(mainCode.get(i)));
+			mainCode.set(i, fixSemicolons(mainCode.get(i)));
 		}
 		for(int i = 0; i < comboList.size(); i++) {
-				comboList.set(i, fixSemicolons(comboList.get(i)));
+			comboList.set(i, fixSemicolons(comboList.get(i)));
 		}
 		for(int i = 0; i < functionList.size(); i++) {
 			functionList.set(i, fixSemicolons(functionList.get(i)));
@@ -453,7 +369,7 @@ public class GPC {
 		//return fixSemicolons(tmp, false, 0, false);
 	}
 	
-	private String fixSemicolons(List<String> codeBlock) {
+	private String fixSemicolons(List<String> codeBlock) { // ADD CODE TO REMOVE RANDOM TOKENS
 		String newStr = "";
 		boolean prevVar = false, oneLineIf = false;
 		int parenCount = 0;
@@ -537,9 +453,13 @@ public class GPC {
 					oneLineIf = false;
 				}
 				else if(prevVar) {
+					if(fixedStr.matches("\\W")) {
+						System.out.println(fixedStr);
+						fixedStr = ";\r\n";
+					}
 					if(!fixedStr.matches("^[0-9]*$"))
 						fixedStr = ";\r\n" + fixedStr;
-					else fixedStr = "";
+					else fixedStr = ""; // remove random numbers
 				}
 				
 				prevVar = true;
@@ -549,7 +469,7 @@ public class GPC {
 		}
 		return newStr;
 	}
-
+	
 	private void fixErrors() {
 		replaceFunctionNames();
 		replaceComboNames();
@@ -558,6 +478,7 @@ public class GPC {
 		fixSemicolons();
 	}
 	
+	@Override
 	public String toString() {
 		String str = "";
 		String dEndLine = "\r\n\r\n";
@@ -573,7 +494,7 @@ public class GPC {
 		str = fortmatCode(str);
 		return str;
 	}
-
+	
 	private static String removeComments(String code) {
 	    StringBuilder newCode = new StringBuilder();
 	    try (StringReader sr = new StringReader(code)) {
@@ -637,6 +558,39 @@ public class GPC {
 	    return newCode.toString();
 	}
 	
+	private static String replaceKeywords(String s) {
+		File tmpDir = new File(System.getProperty("user.dir") + "\\keywords.db");
+		if(tmpDir.exists()) {
+			try {
+				Scanner kwSc = new Scanner(tmpDir);
+				while(kwSc.hasNextLine()) {
+					String str = trimSpacing(kwSc.nextLine());
+					s = s.replaceAll("\\b" + str + "\\b", "t1_" + str);
+				}
+				kwSc.close();
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		s = s.replaceAll("\\s*combo\\s+(\\w+)\\W+\\{", "combo $1 \\{");
+		s = s.replaceAll((":"), (";")); // : = ; in CM lool
+		s = s.replaceAll("main\\s*\\{", "main\\{");
+		s = s.replaceAll("init\\s*\\{", "init\\{");
+		s = s.replaceAll("data\\s*\\(", "data\\(");
+		s = s.replaceAll("\\bdefine\\b", "\r\ndefine");
+		s = s.replaceAll("\\bint\\b", "\r\nint");
+		s = s.replaceAll("\\binit\\b", "\r\ninit");
+		s = s.replaceAll("\\bmain\\b", "\r\nmain");
+		s = s.replaceAll("\\bcombo\\b", "\r\ncombo");
+		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
+		s = s.replaceAll("\\bdata\\b", "\r\ndata");
+		s = s.replaceAll("\\s*;", ";");
+		s = s.replaceAll("(\\d+)\\.\\d+", "$1"); // remove decimal from number
+		s = s.replaceAll("([^\\d])\\.\\d+", "$1 0"); // replace decimal only numbers with 0
+		return s;
+	}
+	
 	private static String trimSpacing(String s) {
 		if(s.isEmpty()) return "";
 		return s.trim().replaceAll("(\\s+)"," ");
@@ -669,6 +623,10 @@ public class GPC {
 			
 		}
 		return newStr;
+	}
+	
+	public void replaceAllInList(List<String> s, String pattern, String replace) {
+		for(int i = 0; i < s.size(); i++) s.set(i, s.get(i).replaceAll(pattern, replace));
 	}
 	
 }
