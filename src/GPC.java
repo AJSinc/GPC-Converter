@@ -1,7 +1,11 @@
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
+
 import javax.swing.JOptionPane;
 
 import java.util.HashMap;
@@ -66,6 +70,42 @@ public class GPC {
 			}
 		}
 		return comboNames;
+	}
+	
+	private void replaceKeywords() {
+		for(int i = 0; i < initCode.size(); i++) {
+			initCode.set(i, replaceKeywords(initCode.get(i)));
+		}
+		for(int i = 0; i < mainCode.size(); i++) {
+			mainCode.set(i, replaceKeywords(mainCode.get(i)));
+		}
+		for(int i = 0; i < comboList.size(); i++) {
+			comboList.set(i, replaceKeywords(comboList.get(i)));
+		}
+		for(int i = 0; i < functionList.size(); i++) {
+			functionList.set(i, replaceKeywords(functionList.get(i)));
+		}
+	}
+	
+	private String replaceKeywords(String s) {
+		File tmpDir = new File(System.getProperty("user.dir") + "\\keywords.db");
+		if(tmpDir.exists()) {
+			try {
+				Scanner kwSc = new Scanner(tmpDir);
+				while(kwSc.hasNextLine()) {
+					String str = kwSc.nextLine().trim();
+					s = s.replaceAll("\\b" + str + "\\b", "t1_" + str);
+				}
+				kwSc.close();
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		s = s.replaceAll((":"), (";")); // : = ; in CM lool
+		s = s.replaceAll("(\\d+)\\.\\d+", "$1"); // remove decimal from number
+		s = s.replaceAll("([^\\d])\\.\\d+", "$1 0"); // replace decimal only numbers with 0
+		return s;
 	}
 	
 	private void replaceFunctionNames() {
@@ -325,6 +365,7 @@ public class GPC {
 	}
 	
 	private void fixErrors() {
+		replaceKeywords();
 		replaceFunctionNames();
 		replaceComboNames();
 		removeUnusedFunctions();
