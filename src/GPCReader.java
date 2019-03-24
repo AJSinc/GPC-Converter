@@ -1,5 +1,3 @@
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -90,7 +88,7 @@ public class GPCReader {
 		gpcReader.close();
 	}
 	
-	private static String readNextLine() {
+	private String readNextLine() {
 		String str = "";
 		do {
 			str = trimSpacing(gpcReader.nextLine());
@@ -99,7 +97,7 @@ public class GPCReader {
 		return str;
 	}
 	
-	private static String parseDefine(String s) {
+	private String parseDefine(String s) {
 		String parsedStr = "";
 		int i = 0;
 		while(i < s.length()) {
@@ -117,7 +115,7 @@ public class GPCReader {
 		return (parsedStr + (!parsedStr.endsWith(";") ? ";" : "")).replaceAll(",", ";\r\ndefine ");
 	}
 	
-	private static String parseMapping(String s) { 
+	private String parseMapping(String s) { 
 		String parsedStr = "";
 		int i = 0;
 		while(i < s.length()) {
@@ -130,7 +128,7 @@ public class GPCReader {
 		return parsedStr + (!parsedStr.endsWith(";") ? ";" : "");
 	}
 	
-	private static String parseVarType(String s) {
+	private String parseVarType(String s) {
 		String parsedStr = "";
 		int i = 0;
 		while(i < s.length()) {
@@ -147,7 +145,7 @@ public class GPCReader {
 		return parsedStr + (!parsedStr.endsWith(";") ? ";" : "");
 	}
 	
-	private static String parseCodeBlock(String s, char blockSetStart, char blockSetEnd) {
+	private String parseCodeBlock(String s, char blockSetStart, char blockSetEnd) {
 		String parsedStr = "";
 		int i = 0;
 		while(i < s.length()) {
@@ -176,7 +174,7 @@ public class GPCReader {
 		return parsedStr;
 	}
 
-	private static String removeComments(String code) {
+	private String removeComments(String code) {
 	    StringBuilder newCode = new StringBuilder();
 	    try (StringReader sr = new StringReader(code)) {
 	        boolean inBlockComment = false;
@@ -240,22 +238,7 @@ public class GPCReader {
 	}
 	
 	private static String replaceKeywords(String s) {
-		File tmpDir = new File(System.getProperty("user.dir") + "\\keywords.db");
-		if(tmpDir.exists()) {
-			try {
-				Scanner kwSc = new Scanner(tmpDir);
-				while(kwSc.hasNextLine()) {
-					String str = trimSpacing(kwSc.nextLine());
-					s = s.replaceAll("\\b" + str + "\\b", "t1_" + str);
-				}
-				kwSc.close();
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
 		s = s.replaceAll("\\s*combo\\s+(\\w+)\\W+\\{", "combo $1 \\{");
-		s = s.replaceAll((":"), (";")); // : = ; in CM lool
 		s = s.replaceAll("main\\s*\\{", "main\\{");
 		s = s.replaceAll("init\\s*\\{", "init\\{");
 		s = s.replaceAll("data\\s*\\(", "data\\(");
@@ -267,8 +250,6 @@ public class GPCReader {
 		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
 		s = s.replaceAll("\\bdata\\b", "\r\ndata");
 		s = s.replaceAll("\\s*;", ";");
-		s = s.replaceAll("(\\d+)\\.\\d+", "$1"); // remove decimal from number
-		s = s.replaceAll("([^\\d])\\.\\d+", "$1 0"); // replace decimal only numbers with 0
 		return s;
 	}
 	
@@ -312,4 +293,5 @@ public class GPCReader {
 	public String getDataSegment() {
 		return dataSegment;
 	}
+	
 }
