@@ -17,7 +17,14 @@ public class GPCtoGPC2 {
 	public static void main(String args[]) throws IOException {
 		File gpcFile = chooseFile();
 		if(gpcFile != null && gpcFile.exists()) {
-			convert(gpcFile);
+			try {
+				convert(gpcFile);
+			}
+			catch(Exception e) {
+				JOptionPane.showMessageDialog(null, "Error converting script (" + gpcFile.getCanonicalPath() + ").\r\n"
+						+ "Please check the file and try again.\r\n\r\n" 
+						+ e.toString());
+			}
 		}
 		System.exit(0);
 	}
@@ -45,12 +52,13 @@ public class GPCtoGPC2 {
 		GPC newGPC = new GPC(gpcFile.getCanonicalPath());
 		
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "gpc2.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.20\"))\r\n");
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.21\"))\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
 		
 		writer.write(newGPC.toString());
 		writer.close();
 		//JOptionPane.showMessageDialog(null, "Script successfully converted.");
 	}
+	
 	
 }
