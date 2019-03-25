@@ -36,13 +36,7 @@ public class GPCReader {
 		functionList = new ArrayList<String>();
 		dataSegment = "";
 		gpcFilePath = s;
-		
-		try {
-			readAll();
-		}
-		catch(Exception e) {
-			e.toString();
-		}
+		readAll();
 	}
 	
 	public String getRawGPCCode() {
@@ -50,7 +44,7 @@ public class GPCReader {
 		try {
 			rawCode = new String(Files.readAllBytes(Paths.get(gpcFilePath)), StandardCharsets.UTF_8);
 			rawCode = removeComments(rawCode);
-			rawCode = replaceKeywords(rawCode);
+			rawCode = replaceFormatting(rawCode);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -237,7 +231,7 @@ public class GPCReader {
 	    return newCode.toString();
 	}
 	
-	private static String replaceKeywords(String s) {
+	private static String replaceFormatting(String s) {
 		s = s.replaceAll("\\s*combo\\s+(\\w+)\\W+\\{", "combo $1 \\{");
 		s = s.replaceAll("main\\s*\\{", "main\\{");
 		s = s.replaceAll("init\\s*\\{", "init\\{");
