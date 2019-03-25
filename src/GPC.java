@@ -300,7 +300,7 @@ public class GPC {
 				}
 			}
 			else if(fixedStr.matches("(for|while|if|else)")) { // containing conditional statements
-				if(oneLineIf) fixedStr = "\r\n\t" + fixedStr;
+				if(oneLineIf) fixedStr = " " + fixedStr;
 				else if(prevVar) fixedStr = ";\r\n" + fixedStr;
 				fixedStr += " ";
 				oneLineIf = true;
@@ -324,7 +324,7 @@ public class GPC {
 				else if(prevVar && parenCount != -1) fixedStr = ";\r\n" + fixedStr;
 				prevVar = false;
 			}
-			else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\&|\\||\\=|\\!|\\^|\\>|\\<).*")) { 
+			else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\%|\\&|\\||\\=|\\!|\\^|\\>|\\<).*")) { 
 				if(fixedStr.length() > 1) {
 					codeBlock.add(1, fixedStr.substring(1));
 					fixedStr = "" + fixedStr.charAt(0);
@@ -333,7 +333,7 @@ public class GPC {
 			}
 			else {
 				if(oneLineIf && parenCount <= 0) {
-					fixedStr = "\r\n\t" + fixedStr;
+					fixedStr = " " + fixedStr;
 					oneLineIf = false;
 				}
 				else if(prevVar) {
