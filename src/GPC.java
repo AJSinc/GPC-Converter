@@ -5,9 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-
-import javax.swing.JOptionPane;
-
 import java.util.HashMap;
 
 public class GPC {
@@ -23,25 +20,17 @@ public class GPC {
 	private String dataSegment;
 	
 	public GPC(String s) {
-		try {
-			GPCReader r = new GPCReader(s);
-			definedList = r.getDefines();
-			mappingCode = r.getMappings();
-			varList = r.getVars();
-			varArrayList = r.getVarArrays();
-			initCode = r.getInitCode();
-			mainCode = r.getMainCode();
-			comboList = r.getCombos();
-			functionList = r.getFunctions();
-			dataSegment = r.getDataSegment();
-			fixErrors();
-		}
-		catch(Exception e) {
-			JOptionPane.showMessageDialog(null, "Error converting script (" + s + ").\r\n"
-					+ "Please check the file and try again.\r\n\r\n" 
-					+ e.toString());
-			System.exit(0);
-		}
+		GPCReader r = new GPCReader(s);
+		definedList = r.getDefines();
+		mappingCode = r.getMappings();
+		varList = r.getVars();
+		varArrayList = r.getVarArrays();
+		initCode = r.getInitCode();
+		mainCode = r.getMainCode();
+		comboList = r.getCombos();
+		functionList = r.getFunctions();
+		dataSegment = r.getDataSegment();
+		fixErrors();
 	}
 	
 	private void replaceComboNames() {
@@ -311,7 +300,8 @@ public class GPC {
 				}
 			}
 			else if(fixedStr.matches("(for|while|if|else)")) { // containing conditional statements
-				if(prevVar) fixedStr = ";\r\n" + fixedStr;
+				if(oneLineIf) fixedStr = "\r\n\t" + fixedStr;
+				else if(prevVar) fixedStr = ";\r\n" + fixedStr;
 				fixedStr += " ";
 				oneLineIf = true;
 			}
@@ -364,6 +354,10 @@ public class GPC {
 		return newStr;
 	}
 	
+	// fix negative consts cm -> t1
+	
+	// convert for loops to while loops cm -> t1
+	
 	private void fixErrors() {
 		replaceKeywords();
 		replaceFunctionNames();
@@ -397,6 +391,7 @@ public class GPC {
 		s = s.replaceAll("\\s*\\{", " {"); // set all { 1 from previous
 		s = s.replaceAll(",", ", "); // put space after commas
 		s = s.replaceAll("\\)\\s*\\{", ") {");
+		s = s.replaceAll("\\belse\\b\\s*\\bif\\b", "else if"); //replace All else\r\nif with else if\r\n
 		for(int i = 0; i < s.length(); i++) {
 			char currChar = s.charAt(i);
 			if(currChar == '{') braceCount++;
@@ -413,8 +408,6 @@ public class GPC {
 					newStr += '\t';
 				}
 			}
-			
-			
 		}
 		return newStr;
 	}
