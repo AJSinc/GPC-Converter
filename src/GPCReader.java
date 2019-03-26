@@ -167,7 +167,7 @@ public class GPCReader {
 		codeBlockBraceCount = 0;
 		return parsedStr;
 	}
-
+	
 	private String removeComments(String code) {
 	    StringBuilder newCode = new StringBuilder();
 	    try (StringReader sr = new StringReader(code)) {
@@ -243,6 +243,7 @@ public class GPCReader {
 		s = s.replaceAll("\\bcombo\\b", "\r\ncombo");
 		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
 		s = s.replaceAll("\\bdata\\b", "\r\ndata");
+		s = s.replaceAll((":"), (";")); // : = ; in CM
 		s = s.replaceAll("\\s*;", ";");
 		return s;
 	}
