@@ -1,27 +1,31 @@
+
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+
+import javax.swing.JOptionPane;
+
 import java.util.HashMap;
 
 public class GPC {
 	
 	private List<String> definedList;
+	private String dataSegment;
+	private List<String> mappingCode;
 	private List<String> varList;
 	private List<String> varArrayList;
-	private List<String> mappingCode;
 	private List<String> initCode;
 	private List<String> mainCode;
 	private List<String> comboList;
 	private List<String> functionList;
-	private String dataSegment;
 	
 	public GPC(String s) {
 		GPCReader r = new GPCReader(s);
 		definedList = r.getDefines();
+		dataSegment = r.getDataSegment();
 		mappingCode = r.getMappings();
 		varList = r.getVars();
 		varArrayList = r.getVarArrays();
@@ -29,8 +33,26 @@ public class GPC {
 		mainCode = r.getMainCode();
 		comboList = r.getCombos();
 		functionList = r.getFunctions();
-		dataSegment = r.getDataSegment();
 		fixErrors();
+	}
+	
+	private void replaceDecimalNumbers() {
+		replaceAllInGPC("(\\d+)\\.\\d+", "$1"); // cut decimal part off
+		replaceAllInGPC("([^\\d])\\.\\d+", "$1 0"); // replace decimal only numbers with 0
+	}
+	
+	private void replaceKeywords() {
+		List a[] = { definedList, mappingCode, varList, varArrayList, initCode, mainCode, comboList, functionList };
+		List<String> keywords = getKeywords();
+		dataSegment = replaceKeywords(dataSegment, keywords);
+		for(int i = 0; i < a.length; i++) {
+			for(int k = 0; k < a[i].size(); k++) a[i].set(k, replaceKeywords((String)a[i].get(k), keywords));
+		}
+	}
+	
+	private String replaceKeywords(String s, List<String> keywords) {
+		for(String str : keywords) s = s.replaceAll("\\b" + str + "\\b", "t1_" + str);
+		return s;
 	}
 	
 	private void replaceComboNames() {
@@ -40,11 +62,8 @@ public class GPC {
 		for(int k = 0; k < comboNames.size(); k++) {
 			String cPattern = pattern + comboNames.get(k) + "\\s*\\)";
 			String replacePattern = " $1\\(c_" + comboNames.get(k)+ "\\)";
-			replaceAllInList(initCode, cPattern, replacePattern);
-			replaceAllInList(mainCode, cPattern, replacePattern);
-			replaceAllInList(comboList, cPattern, replacePattern);
+			replaceAllInCodeSegments(cPattern, replacePattern);
 			replaceAllInList(comboList,"\\s*combo\\s*" + comboNames.get(k) + "\\s*\\{", "combo c_" + comboNames.get(k) + "\\{");
-			replaceAllInList(functionList, cPattern, replacePattern);
 		}
 	}
 	
@@ -61,52 +80,13 @@ public class GPC {
 		return comboNames;
 	}
 	
-	private void replaceKeywords() {
-		for(int i = 0; i < initCode.size(); i++) {
-			initCode.set(i, replaceKeywords(initCode.get(i)));
-		}
-		for(int i = 0; i < mainCode.size(); i++) {
-			mainCode.set(i, replaceKeywords(mainCode.get(i)));
-		}
-		for(int i = 0; i < comboList.size(); i++) {
-			comboList.set(i, replaceKeywords(comboList.get(i)));
-		}
-		for(int i = 0; i < functionList.size(); i++) {
-			functionList.set(i, replaceKeywords(functionList.get(i)));
-		}
-	}
-	
-	private String replaceKeywords(String s) {
-		File tmpDir = new File(System.getProperty("user.dir") + "\\keywords.db");
-		if(tmpDir.exists()) {
-			try {
-				Scanner kwSc = new Scanner(tmpDir);
-				while(kwSc.hasNextLine()) {
-					String str = kwSc.nextLine().trim();
-					s = s.replaceAll("\\b" + str + "\\b", "t1_" + str);
-				}
-				kwSc.close();
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		s = s.replaceAll((":"), (";")); // : = ; in CM lool
-		s = s.replaceAll("(\\d+)\\.\\d+", "$1"); // remove decimal from number
-		s = s.replaceAll("([^\\d])\\.\\d+", "$1 0"); // replace decimal only numbers with 0
-		return s;
-	}
-	
 	private void replaceFunctionNames() {
 		if(functionList.isEmpty()) return;
 		List<String> functionNames = getFunctionNames();
 		for(int k = 0; k < functionNames.size(); k++) {
 			String pattern = "\\b" + functionNames.get(k) + "\\b\\s*\\(";
 			String replacePattern = " f_" + functionNames.get(k) + "\\(";
-			replaceAllInList(initCode, pattern, replacePattern);
-			replaceAllInList(mainCode, pattern, replacePattern);
-			replaceAllInList(comboList, pattern, replacePattern);
-			replaceAllInList(functionList, pattern, replacePattern);
+			replaceAllInCodeSegments(pattern, replacePattern);
 			replaceAllInList(functionList, "\\bint\\b", "");	
 		}
 	}
@@ -138,10 +118,7 @@ public class GPC {
 				
 				String pattern = arrayName + "\\s*\\[(.*?)\\]\\s*\\[(.*?)\\]";
 				String replacePattern = arrayName + "[(" + secondDim + " \\* ($1)) + ($2)]";
-				replaceAllInList(initCode, pattern, replacePattern);
-				replaceAllInList(mainCode, pattern, replacePattern);
-				replaceAllInList(comboList, pattern, replacePattern);
-				replaceAllInList(functionList, pattern, replacePattern);
+				replaceAllInCodeSegments(pattern, replacePattern);
 			}
 		}
 	}
@@ -210,14 +187,8 @@ public class GPC {
 				if(!usedCombos.get(comboNames.get(i))) {
 					String pattern = "\\b(combo_running|combo_suspended)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)";
 					String pattern2 = "\\b(combo_suspend|combo_stop)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)\\s*(;|\\s*)";
-					replaceAllInList(mainCode, pattern, "FALSE");
-					replaceAllInList(mainCode, pattern2, "");
-					replaceAllInList(initCode, pattern, "FALSE");
-					replaceAllInList(initCode, pattern2, "");
-					replaceAllInList(comboList, pattern, "FALSE");
-					replaceAllInList(comboList, pattern2, "");
-					replaceAllInList(functionList, pattern, "FALSE");
-					replaceAllInList(functionList, pattern2, "");
+					replaceAllInCodeSegments(pattern, "FALSE");
+					replaceAllInCodeSegments(pattern2, "");
 					comboList.set(i, "");
 				}
 			}
@@ -225,18 +196,10 @@ public class GPC {
 	}
 	
 	private void fixSemicolons() {
-		for(int i = 0; i < initCode.size(); i++) {
-			initCode.set(i, fixSemicolons(initCode.get(i)));
-		}
-		for(int i = 0; i < mainCode.size(); i++) {
-			mainCode.set(i, fixSemicolons(mainCode.get(i)));
-		}
-		for(int i = 0; i < comboList.size(); i++) {
-			comboList.set(i, fixSemicolons(comboList.get(i)));
-		}
-		for(int i = 0; i < functionList.size(); i++) {
-			functionList.set(i, fixSemicolons(functionList.get(i)));
-		}
+		for(int i = 0; i < initCode.size(); i++) initCode.set(i, fixSemicolons(initCode.get(i)));
+		for(int i = 0; i < mainCode.size(); i++) mainCode.set(i, fixSemicolons(mainCode.get(i)));
+		for(int i = 0; i < comboList.size(); i++) comboList.set(i, fixSemicolons(comboList.get(i)));
+		for(int i = 0; i < functionList.size(); i++) functionList.set(i, fixSemicolons(functionList.get(i)));
 	}
 	
 	private String fixSemicolons(String s) {
@@ -256,10 +219,11 @@ public class GPC {
 		String newStr = "";
 		boolean prevVar = false, oneLineIf = false;
 		int parenCount = 0;
+		
 		while(!codeBlock.isEmpty()) {
 			String fixedStr = codeBlock.get(0);
 			if(fixedStr.isEmpty()) { } // Empty line
-			else if(fixedStr.matches("(main|function|combo|init)")) { // matches start of stuff
+			else if(fixedStr.matches("(main|function|combo|init)")) { // matches start of codeblock
 				fixedStr = fixedStr + " ";
 				while(!codeBlock.get(1).equals("{")) {
 					fixedStr += codeBlock.get(1) + "";
@@ -268,22 +232,22 @@ public class GPC {
 				fixedStr += codeBlock.get(1) + "\r\n";
 				codeBlock.remove(1);
 			}
-			else if(fixedStr.matches("\\(")) {
+			else if(fixedStr.matches("\\(")) { // opening paren
 				if(parenCount <= 0) parenCount = 0;
 				parenCount++;
 				prevVar = false;
 			}
-			else if(fixedStr.matches((".*(\\[|\\]).*"))) {
-				prevVar = false;
-			}
-			else if(fixedStr.matches("\\)")) {
+			else if(fixedStr.matches("\\)")) { // closing paren
 				parenCount--;
 				prevVar = true;
 				if(parenCount == 0) {
 					parenCount = -1; // paren just ended
 				}
 			}
-			else if(fixedStr.matches("\\;")) {
+			else if(fixedStr.matches((".*(\\[|\\]).*"))) { // array square brackets
+				prevVar = false;
+			}
+			else if(fixedStr.matches("\\;")) { // semicolon - line end
 				if(parenCount <= 0)  { // for loop conditions
 					fixedStr +=  "\r\n";
 					oneLineIf = false;
@@ -291,7 +255,7 @@ public class GPC {
 				else fixedStr += " ";
 				prevVar = false;
 			}
-			else if(fixedStr.matches(("return"))) {
+			else if(fixedStr.matches(("return"))) { // return statement
 				fixedStr += (codeBlock.get(1).trim().replaceAll("\\s", "").matches("\\}") ? ";\r\n" : " ");
 				prevVar = false;
 				if(oneLineIf) {
@@ -310,12 +274,18 @@ public class GPC {
 					if(!oneLineIf) { // remove random { }
 						fixedStr = "";
 						int i = 1;
-						while(!codeBlock.get(i).equals("}")) {
+						int braceCount = 0;
+						while(!codeBlock.get(i).equals("}") || braceCount > 0) { // extra { need to be accounted for while searching for the matching }
+							if(codeBlock.get(i).equals("{")) braceCount++;
+							else if(codeBlock.get(i).equals("}")) braceCount--;
 							i++;
 						}
 						codeBlock.remove(i);
 					}
-					else fixedStr += "\r\n";
+					
+					else {
+						fixedStr += "\r\n";
+					}
 					oneLineIf = false;
 				}
 				if(fixedStr.equals("}")) {
@@ -324,14 +294,14 @@ public class GPC {
 				else if(prevVar && parenCount != -1) fixedStr = ";\r\n" + fixedStr;
 				prevVar = false;
 			}
-			else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\%|\\&|\\||\\=|\\!|\\^|\\>|\\<).*")) { 
+			else if(fixedStr.matches(".*(\\,|\\+|\\-|\\*|\\/|\\%|\\&|\\||\\=|\\!|\\^|\\>|\\<).*")) { // operators
 				if(fixedStr.length() > 1) {
 					codeBlock.add(1, fixedStr.substring(1));
 					fixedStr = "" + fixedStr.charAt(0);
 				}
 				prevVar = false;
 			}
-			else {
+			else { // identifiers
 				if(oneLineIf && parenCount <= 0) {
 					fixedStr = " " + fixedStr;
 					oneLineIf = false;
@@ -360,6 +330,7 @@ public class GPC {
 	
 	private void fixErrors() {
 		replaceKeywords();
+		replaceDecimalNumbers();
 		replaceFunctionNames();
 		replaceComboNames();
 		removeUnusedFunctions();
@@ -412,8 +383,42 @@ public class GPC {
 		return newStr;
 	}
 	
-	public void replaceAllInList(List<String> s, String pattern, String replace) {
-		for(int i = 0; i < s.size(); i++) s.set(i, s.get(i).replaceAll(pattern, replace));
+	public void replaceAllInList(List<String> s, String pattern, String replacePattern) {
+		for(int i = 0; i < s.size(); i++) s.set(i, s.get(i).replaceAll(pattern, replacePattern));
+	}
+	
+	public void replaceAllInCodeSegments(String pattern, String replacePattern) {
+		replaceAllInList(initCode, pattern, replacePattern);
+		replaceAllInList(mainCode, pattern, replacePattern);
+		replaceAllInList(comboList, pattern, replacePattern);
+		replaceAllInList(functionList, pattern, replacePattern);
+	}
+	
+	public void replaceAllInGPC(String pattern, String replacePattern) {
+		replaceAllInList(definedList, pattern, replacePattern);
+		dataSegment = dataSegment.replaceAll(pattern, replacePattern);
+		replaceAllInList(varList, pattern, replacePattern);
+		replaceAllInList(varArrayList, pattern, replacePattern);
+		replaceAllInList(mappingCode, pattern, replacePattern);
+		replaceAllInCodeSegments(pattern, replacePattern);
+	}
+	
+	private List<String> getKeywords() {
+		List<String> keywords = new ArrayList<String>();
+		try {
+			String path = java.net.URLDecoder.decode(ClassLoader.getSystemClassLoader().getResource(".").getPath(), "UTF-8");
+			File tmpDir = new File(path + "keywords.db");
+			Scanner kwSc = new Scanner(tmpDir);
+			while(kwSc.hasNextLine()) {
+				String str = kwSc.nextLine().trim();
+				keywords.add(str);
+			}
+			kwSc.close();
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(null, "Could not open keywords.db in " + ClassLoader.getSystemClassLoader().getResource(".").getPath() + "\r\n" + e.toString());
+			System.exit(0);
+		}
+		return keywords;
 	}
 	
 }
