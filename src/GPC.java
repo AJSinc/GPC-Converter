@@ -21,6 +21,7 @@ public class GPC {
 	private List<String> mainCode;
 	private List<String> comboList;
 	private List<String> functionList;
+	private String commentBlock;
 	
 	public GPC(String s) {
 		GPCReader r = new GPCReader(s);
@@ -33,6 +34,7 @@ public class GPC {
 		mainCode = r.getMainCode();
 		comboList = r.getCombos();
 		functionList = r.getFunctions();
+		commentBlock = r.getCommentBlock();
 		fixErrors();
 	}
 	
@@ -59,49 +61,22 @@ public class GPC {
 		if(comboList.isEmpty()) return;
 		List<String> comboNames = getComboNames();
 		String pattern = "(combo_run|combo_running|combo_stop|combo_restart|combo_suspend|combo_suspended|call)\\s*\\(\\s*";
-		for(int k = 0; k < comboNames.size(); k++) {
-			String cPattern = pattern + comboNames.get(k) + "\\s*\\)";
-			String replacePattern = " $1\\(c_" + comboNames.get(k)+ "\\)";
+		for(String comboName : comboNames) {
+			String cPattern = pattern + comboName + "\\s*\\)";
+			String replacePattern = " $1\\(c_" + comboName + "\\)";
 			replaceAllInCodeSegments(cPattern, replacePattern);
-			replaceAllInList(comboList,"\\s*combo\\s*" + comboNames.get(k) + "\\s*\\{", "combo c_" + comboNames.get(k) + "\\{");
+			replaceAllInList(comboList,"\\s*combo\\s*" + comboName + "\\s*\\{", "combo c_" + comboName + "\\{");
 		}
-	}
-	
-	private List<String> getComboNames() {
-		List<String> comboNames = new ArrayList<String>();
-		if(!comboList.isEmpty()) {
-			for(int i = 0; i < comboList.size(); i++) {
-				String combo = comboList.get(i);
-				int lastIdx = combo.indexOf("{") != -1 ? combo.indexOf("{") : combo.length();
-				String comboName = combo.substring(combo.indexOf("combo ") + 6, lastIdx).trim();
-				comboNames.add(comboName);
-			}
-		}
-		return comboNames;
 	}
 	
 	private void replaceFunctionNames() {
-		if(functionList.isEmpty()) return;
 		List<String> functionNames = getFunctionNames();
-		for(int k = 0; k < functionNames.size(); k++) {
-			String pattern = "\\b" + functionNames.get(k) + "\\b\\s*\\(";
-			String replacePattern = " f_" + functionNames.get(k) + "\\(";
+		for(String functionName : functionNames) {
+			String pattern = "\\b" + functionName + "\\b\\s*\\(";
+			String replacePattern = " f_" + functionName + "\\(";
 			replaceAllInCodeSegments(pattern, replacePattern);
 			replaceAllInList(functionList, "\\bint\\b", "");	
 		}
-	}
-	
-	private List<String> getFunctionNames() {
-		List<String> functionNames = new ArrayList<String>();
-		if(!functionList.isEmpty()) {
-			for(int i = 0; i < functionList.size(); i++) {
-				String function = functionList.get(i);
-				int lastIdx = function.indexOf("(") != -1 ? function.indexOf("(") : function.length();
-				String funcName = function.substring(function.indexOf("function ") + 9, lastIdx).trim();
-				functionNames.add(funcName);
-			}
-		}
-		return functionNames;
 	}
 	
 	private void flattenMutlidimArrays() {
@@ -120,6 +95,13 @@ public class GPC {
 				String replacePattern = arrayName + "[(" + secondDim + " \\* ($1)) + ($2)]";
 				replaceAllInCodeSegments(pattern, replacePattern);
 			}
+		}
+	}
+	
+	private void replaceArrayTricks() {
+		List<String> varNames = getVariableNames();
+		for(String s : varNames) {
+			replaceAllInCodeSegments("\\b" + s + "\\b\\s*\\[(.*?)\\]", s+"\\[\\-\\($1\\)\\]");
 		}
 	}
 	
@@ -179,18 +161,18 @@ public class GPC {
 					change = true;
 				}
 			}
-			
-			for(int i = 0; i < usedFunctions.size(); i++) {
-				if(!usedFunctions.get(functionNames.get(i))) functionList.set(i, "");
-			}
-			for(int i = 0; i < usedCombos.size(); i++) {
-				if(!usedCombos.get(comboNames.get(i))) {
-					String pattern = "\\b(combo_running|combo_suspended)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)";
-					String pattern2 = "\\b(combo_suspend|combo_stop)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)\\s*(;|\\s*)";
-					replaceAllInCodeSegments(pattern, "FALSE");
-					replaceAllInCodeSegments(pattern2, "");
-					comboList.set(i, "");
-				}
+		}
+		
+		for(int i = 0; i < functionNames.size(); i++) {
+			if(!usedFunctions.get(functionNames.get(i))) functionList.set(i, "/*" + functionList.get(i) + "*/");
+		}
+		for(int i = 0; i < comboNames.size(); i++) {
+			if(!usedCombos.get(comboNames.get(i))) {
+				String pattern = "\\b(combo_running|combo_suspended)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)";
+				String pattern2 = "\\b(combo_suspend|combo_stop)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b\\s*\\)\\s*(;|\\s*)";
+				replaceAllInCodeSegments(pattern, "FALSE");
+				replaceAllInCodeSegments(pattern2, "");
+				comboList.set(i, "/*" + comboList.get(i) + "*/");
 			}
 		}
 	}
@@ -334,15 +316,15 @@ public class GPC {
 		replaceFunctionNames();
 		replaceComboNames();
 		removeUnusedFunctions();
+		replaceArrayTricks();
 		flattenMutlidimArrays();
 		fixSemicolons();
 	}
 	
 	@Override
 	public String toString() {
-		String str = "";
 		String dEndLine = "\r\n\r\n";
-		str += String.join("\r\n", definedList) + ((definedList.isEmpty()) ? "" : dEndLine);
+		String str = String.join("\r\n", definedList) + ((definedList.isEmpty()) ? "" : dEndLine);
 		str += dataSegment + ((dataSegment.length() == 0) ? "" : dEndLine);
 		str += String.join("\r\n", mappingCode) + ((mappingCode.isEmpty()) ? "" : dEndLine);
 		str += String.join("\r\n", varArrayList) + ((varArrayList.isEmpty()) ? "" : dEndLine);
@@ -352,17 +334,60 @@ public class GPC {
 		str += String.join("\r\n", comboList) + ((comboList.isEmpty()) ? "" : dEndLine);
 		str += String.join("\r\n", functionList) + ((functionList.isEmpty()) ? "" : dEndLine);
 		str = fortmatCode(str);
+		str = commentBlock + dEndLine + dEndLine + str;
 		return str;
+	}
+	
+	private List<String> getVariableNames(){
+		List<String> varNames = new ArrayList<String>();
+		for(int i = 0; i < varList.size(); i++) {
+			String varBlock = varList.get(i).trim().replaceAll(",|;", " ");
+			varBlock = varBlock.replaceAll("\\s*\\[\\s*", "\\["); // replace all brackets
+			varBlock = varBlock.replaceAll("\\s*\\]\\s*", "\\] ");
+			varBlock = varBlock.replaceAll("=\\s*", " =");
+			String[] varBlockSplit = varBlock.replaceAll("\\s+", " ").split(" ");
+			for(int k = 0; k < varBlockSplit.length; k++) {
+				if(varBlockSplit[k].equals("int") || varBlockSplit[k].contains("[") || varBlockSplit[k].contains("=")) continue;
+				varNames.add(varBlockSplit[k]);
+			}
+		}
+		
+		return varNames;
+	}
+	
+	private List<String> getComboNames() {
+		List<String> comboNames = new ArrayList<String>();
+		for(String combo : comboList) {
+			int lastIdx = combo.indexOf("{") != -1 ? combo.indexOf("{") : combo.length();
+			String comboName = combo.substring(combo.indexOf("combo ") + 6, lastIdx).trim();
+			comboNames.add(comboName);
+		}
+		return comboNames;
+	}
+	
+	private List<String> getFunctionNames() {
+		List<String> functionNames = new ArrayList<String>();
+		for(String function : functionList) {
+			int lastIdx = function.indexOf("(") != -1 ? function.indexOf("(") : function.length();
+			String funcName = function.substring(function.indexOf("function ") + 9, lastIdx).trim();
+			functionNames.add(funcName);
+		}
+		return functionNames;
 	}
 	
 	public static String fortmatCode(String s) {
 		int braceCount = 0;
+		String operatorPattern = "(\\+|\\-|\\*|\\/|\\%|\\&|\\||\\=|\\!|\\^|\\>|\\<)";
+		String singleOperatorPattern = "(\\+|\\-|\\*|\\/|\\%|\\&|\\||\\=|\\>|\\<)";
 		String newStr = "";
 		s = s.replaceAll("\r\n\\s*\r\n\\}", "\r\n\\}"); // replace blank line followed by }
+		s = s.replaceAll("\\s*\\}", "\r\n}");
 		s = s.replaceAll("\\s*\\{", " {"); // set all { 1 from previous
 		s = s.replaceAll(",", ", "); // put space after commas
 		s = s.replaceAll("\\)\\s*\\{", ") {");
 		s = s.replaceAll("\\belse\\b\\s*\\bif\\b", "else if"); //replace All else\r\nif with else if\r\n
+		s = s.replaceAll("\\s*" + singleOperatorPattern + "\\s*", " $1 ");
+		s = s.replaceAll("\\s*" + operatorPattern + "\\s*" + operatorPattern + "\\s*" , " $1$2 ");
 		for(int i = 0; i < s.length(); i++) {
 			char currChar = s.charAt(i);
 			if(currChar == '{') braceCount++;
