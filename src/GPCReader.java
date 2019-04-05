@@ -20,6 +20,7 @@ public class GPCReader {
 	private List<String> comboList;
 	private List<String> functionList;
 	private String dataSegment;
+	private String commentBlock;
 	
 	private static Scanner gpcReader;
 	private static int readIdx;
@@ -35,6 +36,7 @@ public class GPCReader {
 		comboList = new ArrayList<String>();
 		functionList = new ArrayList<String>();
 		dataSegment = "";
+		commentBlock = "";
 		gpcFilePath = s;
 		readAll();
 	}
@@ -43,6 +45,7 @@ public class GPCReader {
 		String rawCode = "";
 		try {
 			rawCode = new String(Files.readAllBytes(Paths.get(gpcFilePath)), StandardCharsets.UTF_8);
+			commentBlock = getComments(rawCode);
 			rawCode = removeComments(rawCode);
 			rawCode = replaceFormatting(rawCode);
 		} catch (IOException e) {
@@ -70,12 +73,8 @@ public class GPCReader {
 				else if(currLine.startsWith("function ")) functionList.add(parseCodeBlock(currLine, '{', '}'));
 				else if(currLine.startsWith("data")) dataSegment = parseCodeBlock(currLine, '(', ')') + ";"; // will cause ; to trigger other
 				else { // unknown line
-					int idx = currLine.indexOf(" ");
 					System.out.println("Other: " + currLine);
-					readIdx = currLine.length();
-					if(idx != -1) {
-						readIdx = idx+1;
-					}
+					readIdx = 1;
 				}
 			}
 		}
@@ -168,13 +167,12 @@ public class GPCReader {
 		return parsedStr;
 	}
 	
-	private String removeComments(String code) {
-	    StringBuilder newCode = new StringBuilder();
+	private String getComments(String code) {
+	    String comments = "";
 	    try (StringReader sr = new StringReader(code)) {
 	        boolean inBlockComment = false;
 	        boolean inLineComment = false;
 	        boolean out = true;
-
 	        int prev = sr.read();
 	        int cur;
 	        for(cur = sr.read(); cur != -1; cur = sr.read()) {
@@ -183,7 +181,74 @@ public class GPCReader {
 	                    inBlockComment = false;
 	                    out = false;
 	                }
-	            } else if (inLineComment) {
+	                comments += "" + (char)cur;
+	            } 
+				else if (inLineComment) {
+	                if (cur == '\r') { // start untested block
+	                    sr.mark(1);
+	                    int next = sr.read();
+	                    if (next != '\n') {
+	                        sr.reset();
+	                    }
+	                    inLineComment = false;
+	                    out = false; // end untested block
+	                    comments += "\r\n";
+	                }
+					else {
+						if (cur == '\n') {
+		                    inLineComment = false;
+		                    out = false;
+						}
+						comments += "" + (char)cur;
+					}
+				}
+				else {
+	                if (prev == '/' && cur == '*') {
+	                    sr.mark(1); // start untested block
+	                    //int next = sr.read();
+						// if (next != '*') 
+	                    inBlockComment = true; // tested line (without rest of block)
+	                    //
+	                    sr.reset(); // end untested block
+	                    comments += "/*";
+	                }
+					else if (prev == '/' && cur == '/') {
+	                    inLineComment = true;
+	                    comments += "//";
+	                } 
+					else if (out){
+						
+	                } 
+					else {
+	                    out = true;
+	                }
+	            }
+	            prev = cur;
+	        }
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+	    return comments;
+	}
+	
+	private String removeComments(String code) {
+	    StringBuilder newCode = new StringBuilder();
+	    String currComment = "";
+	    try (StringReader sr = new StringReader(code)) {
+	        boolean inBlockComment = false;
+	        boolean inLineComment = false;
+	        boolean out = true;
+	        int prev = sr.read();
+	        int cur;
+	        for(cur = sr.read(); cur != -1; cur = sr.read()) {
+	            if(inBlockComment) {
+	                if (prev == '*' && cur == '/') {
+	                    inBlockComment = false;
+	                    out = false;
+	                }
+					//System.out.print("" + (char)cur);
+	            } 
+				else if (inLineComment) {
 	                if (cur == '\r') { // start untested block
 	                    sr.mark(1);
 	                    int next = sr.read();
@@ -199,18 +264,21 @@ public class GPCReader {
 	                    inLineComment = false;
 	                    out = false;
 	                }
-	            } 
+					//System.out.print("" + (char)cur);
+				}
 				else {
 	                if (prev == '/' && cur == '*') {
 	                    sr.mark(1); // start untested block
 	                    //int next = sr.read();
 						// if (next != '*') 
-	                        inBlockComment = true; // tested line (without rest of block)
+	                    	inBlockComment = true; // tested line (without rest of block)
 	                    //
 	                    sr.reset(); // end untested block
+						//System.out.print("/*");
 	                }
 					else if (prev == '/' && cur == '/') {
 	                    inLineComment = true;
+						//System.out.print("//");
 	                } 
 					else if (out){
 	                    newCode.append((char)prev);
@@ -227,7 +295,6 @@ public class GPCReader {
 	    } catch (IOException e) {
 	        e.printStackTrace();
 	    }
-
 	    return newCode.toString();
 	}
 	
@@ -287,6 +354,10 @@ public class GPCReader {
 	
 	public String getDataSegment() {
 		return dataSegment;
+	}
+	
+	public String getCommentBlock() {
+		return commentBlock;
 	}
 	
 }
