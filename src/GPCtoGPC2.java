@@ -52,7 +52,7 @@ public class GPCtoGPC2 {
 		GPC newGPC = new GPC(gpcFile.getCanonicalPath());
 		
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "gpc2.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.23\"))\r\n");
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.23r2\")\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
 		
 		writer.write(newGPC.toString());
