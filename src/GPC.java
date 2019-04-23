@@ -388,6 +388,9 @@ public class GPC {
 		s = s.replaceAll("\\belse\\b\\s*\\bif\\b", "else if"); //replace All else\r\nif with else if\r\n
 		s = s.replaceAll("\\s*" + singleOperatorPattern + "\\s*", " $1 ");
 		s = s.replaceAll("\\s*" + operatorPattern + "\\s*" + operatorPattern + "\\s*" , " $1$2 ");
+		s = s.replaceAll("\\/\\*", "\r\n\r\n\\/\\*"); // comments
+		s = s.replaceAll("\\*\\/", "\r\n\\*\\/\r\n\r\n"); // comments
+		s = s.replaceAll("(\\D)[0]+([\\d]+)", "$1$2");
 		for(int i = 0; i < s.length(); i++) {
 			char currChar = s.charAt(i);
 			if(currChar == '{') braceCount++;
