@@ -180,8 +180,9 @@ public class GPCReader {
 	                if (prev == '*' && cur == '/') {
 	                    inBlockComment = false;
 	                    out = false;
+	                    comments += "*/";
 	                }
-	                comments += "" + (char)cur;
+	                else comments += "" + (char)cur;
 	            } 
 				else if (inLineComment) {
 	                if (cur == '\r') { // start untested block
@@ -271,8 +272,9 @@ public class GPCReader {
 	                    sr.mark(1); // start untested block
 	                    //int next = sr.read();
 						// if (next != '*') 
-	                    	inBlockComment = true; // tested line (without rest of block)
+	                    inBlockComment = true; // tested line (without rest of block)
 	                    //
+	                    cur = 0;
 	                    sr.reset(); // end untested block
 						//System.out.print("/*");
 	                }
