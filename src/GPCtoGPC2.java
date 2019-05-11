@@ -52,10 +52,10 @@ public class GPCtoGPC2 {
 		GPC newGPC = new GPC(gpcFile.getCanonicalPath());
 		
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "gpc2.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.24r2\")\r\n");
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.24r3\")\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
 		
-		writer.write(newGPC.toString());
+		writer.write(newGPC.toString().replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg/g6WdNY2 "));
 		writer.close();
 		//JOptionPane.showMessageDialog(null, "Script successfully converted.");
 	}
