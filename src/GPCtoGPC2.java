@@ -15,21 +15,24 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 public class GPCtoGPC2 {
 	
 	public static void main(String args[]) throws IOException {
-		File gpcFile = chooseFile();
-		if(gpcFile != null && gpcFile.exists()) {
-			try {
-				convert(gpcFile);
-			}
-			catch(Exception e) {
-				JOptionPane.showMessageDialog(null, "Error converting script (" + gpcFile.getCanonicalPath() + ").\r\n"
-						+ "Please check the file and try again.\r\n\r\n" 
-						+ e.toString());
+		System.out.print("");
+		File[] gpcFile = chooseFile();
+		if(gpcFile != null && gpcFile.length > 0) {
+			for(int i = 0; i < gpcFile.length; i++) { 
+				try {
+					convert(gpcFile[i]);
+				}
+				catch(Exception e) {
+					JOptionPane.showMessageDialog(null, "Error converting script (" + gpcFile[i].getCanonicalPath() + ").\r\n"
+							+ "Please check the file and try again.\r\n\r\n" 
+							+ e.toString());
+				}
 			}
 		}
 		System.exit(0);
 	}
 	
-	public static File chooseFile() {
+	public static File[] chooseFile() {
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException
@@ -40,22 +43,24 @@ public class GPCtoGPC2 {
 			return null;
 		}
 		JFileChooser chooser = new JFileChooser(System.getProperty("user.dir"));
+		chooser.setMultiSelectionEnabled(true);
 		FileNameExtensionFilter filter = new FileNameExtensionFilter("GPC Script files", "gpc");
 		chooser.setFileFilter(filter);
 		int returnVal = chooser.showOpenDialog(null);
 		if(returnVal == JFileChooser.APPROVE_OPTION) 
-			return chooser.getSelectedFile();
+			return chooser.getSelectedFiles();
 		return null;
 	}
 	
 	public static void convert(File gpcFile) throws FileNotFoundException, IOException {
-		GPC newGPC = new GPC(gpcFile.getCanonicalPath());
-		
-		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "gpc2.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.24r3\")\r\n");
+		GPC gpc = new GPC(gpcFile.getCanonicalPath());
+		GPCConverter.fixGPCErrors(gpc);
+		String newCode = GPCConverter.fortmatGPCCode(gpc.toString()).replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg");
+		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "Titan_Two.gpc"), "utf-8"));
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.25r4\")\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
-		
-		writer.write(newGPC.toString().replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg/g6WdNY2 "));
+		writer.write(gpc.getCommentBlock() + "\r\n\r\n");
+		writer.write(newCode);
 		writer.close();
 		//JOptionPane.showMessageDialog(null, "Script successfully converted.");
 	}
