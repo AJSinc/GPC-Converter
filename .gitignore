@@ -1,0 +1,7 @@
+.project
+.classpath
+bin/GPC.class
+bin/GPCtoGPC2.class
+bin/keywords.db
+bin/GPCConverter.class
+.settings/org.eclipse.jdt.core.prefs

@@ -57,7 +57,7 @@ public class GPCtoGPC2 {
 		GPCConverter.fixGPCErrors(gpc);
 		String newCode = GPCConverter.fortmatGPCCode(gpc.toString()).replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg");
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "Titan_Two.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.25r4\")\r\n");
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.25r5\")\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
 		writer.write(gpc.getCommentBlock() + "\r\n\r\n");
 		writer.write(newCode);

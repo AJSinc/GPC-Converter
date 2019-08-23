@@ -301,6 +301,7 @@ public class GPC {
 	}
 	
 	private static String replaceFormatting(String s) {
+		s = s.replaceAll("\\bconst\\b", "\r\nconst");
 		s = s.replaceAll("\\s*combo\\s+(\\w+)\\W+\\{", "combo $1 \\{");
 		s = s.replaceAll("main\\s*\\{", "main\\{");
 		s = s.replaceAll("init\\s*\\{", "init\\{");
