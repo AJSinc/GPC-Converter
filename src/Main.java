@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.file.Paths;
 
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -12,13 +13,24 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-public class GPCtoGPC2 {
+public class Main {
 	
 	public static void main(String args[]) throws IOException {
-		System.out.print("");
-		File[] gpcFile = chooseFile();
+		File[] gpcFile;
+		
+		if(args.length > 0) {
+			String path = "";
+			for(int i = 0; i < args.length; i++) path += args[i] + " ";
+			gpcFile = new File[1];
+			gpcFile[0] = Paths.get(path.trim()).toFile();
+		}
+		else  gpcFile = chooseFile();
 		if(gpcFile != null && gpcFile.length > 0) {
 			for(int i = 0; i < gpcFile.length; i++) { 
+				if(!gpcFile[i].exists()) {
+					JOptionPane.showMessageDialog(null, "Could not find " + gpcFile[0].getCanonicalPath());
+					continue;
+				}
 				try {
 					convert(gpcFile[i]);
 				}
@@ -57,7 +69,7 @@ public class GPCtoGPC2 {
 		GPCConverter.fixGPCErrors(gpc);
 		String newCode = GPCConverter.fortmatGPCCode(gpc.toString()).replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg");
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "Titan_Two.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.25r5\")\r\n");
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.26\")\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
 		writer.write(gpc.getCommentBlock() + "\r\n\r\n");
 		writer.write(newCode);
