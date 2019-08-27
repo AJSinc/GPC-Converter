@@ -17,14 +17,15 @@ public class Main {
 	
 	public static void main(String args[]) throws IOException {
 		File[] gpcFile;
-		
-		if(args.length > 0) {
-			String path = "";
-			for(int i = 0; i < args.length; i++) path += args[i] + " ";
+		String argspath = "";
+		for(int i = 0; i < args.length; i++) argspath += args[i] + ((i + 1) < args.length ? " " : "");
+		if(!argspath.isEmpty() && argspath.endsWith(".gpc")) {
 			gpcFile = new File[1];
-			gpcFile[0] = Paths.get(path.trim()).toFile();
+			gpcFile[0] = Paths.get(argspath).toFile();
 		}
-		else  gpcFile = chooseFile();
+		else  {
+			gpcFile = chooseFile();
+		}
 		if(gpcFile != null && gpcFile.length > 0) {
 			for(int i = 0; i < gpcFile.length; i++) { 
 				if(!gpcFile[i].exists()) {
@@ -69,7 +70,7 @@ public class Main {
 		GPCConverter.fixGPCErrors(gpc);
 		String newCode = GPCConverter.fortmatGPCCode(gpc.toString()).replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg");
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "Titan_Two.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.26\")\r\n");
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.26r1\")\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
 		writer.write(gpc.getCommentBlock() + "\r\n\r\n");
 		writer.write(newCode);
