@@ -15,10 +15,13 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Main {
 	
+	private static final String VERSION = "v0.26r2";
+	
 	public static void main(String args[]) throws IOException {
 		File[] gpcFile;
 		String argspath = "";
 		for(int i = 0; i < args.length; i++) argspath += args[i] + ((i + 1) < args.length ? " " : "");
+		//JOptionPane.showMessageDialog(null, argspath);
 		if(!argspath.isEmpty() && argspath.endsWith(".gpc")) {
 			gpcFile = new File[1];
 			gpcFile[0] = Paths.get(argspath).toFile();
@@ -70,7 +73,7 @@ public class Main {
 		GPCConverter.fixGPCErrors(gpc);
 		String newCode = GPCConverter.fortmatGPCCode(gpc.toString()).replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg");
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "Titan_Two.gpc"), "utf-8"));
-		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter v0.26r1\")\r\n");
+		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter " + VERSION + "\")\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
 		writer.write(gpc.getCommentBlock() + "\r\n\r\n");
 		writer.write(newCode);
