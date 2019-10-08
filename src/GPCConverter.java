@@ -180,7 +180,7 @@ public class GPCConverter {
 		}
 		for(int i = 0; i < comboNames.size(); i++) {
 			boolean used = false;
-			String pattern = "(?s).*\\b(combo_run|call)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b.*";
+			String pattern = "(?s).*\\b(combo_run|call|combo_restart)\\b\\s*\\(\\s*\\b" + comboNames.get(i) + "\\b.*";
 			for(int k = 0; k < initCode.size() && !used; k++) used = initCode.get(k).matches(pattern);
 			for(int k = 0; k < mainCode.size() && !used; k++) used = mainCode.get(k).matches(pattern);
 			usedCombos.put(comboNames.get(i), used);
