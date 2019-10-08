@@ -1,0 +1,5 @@
+To setup the converter with GtunerIV's external tools, extract the folder (GPC-Converter) into the GtunerIV directory
+Open GtunerIV ->
+Tools-> Preferences-> External Tools-> Paste the following line into the box:
+
+GPC Converter, $DATA_DIR$\GPC-Converter\launcher.bat, "$CURR_FILE$"
