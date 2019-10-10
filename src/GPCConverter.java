@@ -94,6 +94,8 @@ public class GPCConverter {
 	public static void convertRemapsToGPC2(GPC gpc) {
 		staticCopyTempGPC(gpc);
 		
+		if(mappingCode.size() == 0) return;
+		
 		String newCode = "main {//remapping code \r\n";
 		while(mappingCode.size() > 0) {
 			String newMapping = mappingCode.get(0).replaceAll("\\bunmap\\b\\s*\\b(\\w*)\\b", "set_val($1,0)");
