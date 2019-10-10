@@ -64,7 +64,7 @@ public class GPC {
 				currLine = currLine.substring(readIdx).trim();
 				readIdx = 0;
 				if(currLine.startsWith("define "))  definedList.add(parseDefine(currLine));
-				else if(currLine.startsWith("unmap") || currLine.startsWith("map") || currLine.startsWith("remap")) mappingCode.add(parseMapping(currLine));
+				else if(currLine.startsWith("unmap") || currLine.startsWith("remap")) mappingCode.add(parseMapping(currLine));
 				else if(currLine.startsWith("int ")) varList.add(parseVarType(currLine));
 				else if(currLine.startsWith("const ")) varArrayList.add((parseCodeBlock(currLine, '{', '}') + ";").replaceAll("\\bbyte\\b", "int8"));	
 				else if(currLine.startsWith("init")) initCode.add(parseCodeBlock(currLine, '{', '}'));
@@ -108,7 +108,7 @@ public class GPC {
 		return (parsedStr + (!parsedStr.endsWith(";") ? ";" : "")).replaceAll(",", ";\r\ndefine ");
 	}
 	
-	private String parseMapping(String s) { 
+	private String parseMapping(String s) {
 		String parsedStr = "";
 		int i = 0;
 		while(i < s.length()) {
@@ -313,6 +313,8 @@ public class GPC {
 		s = s.replaceAll("\\bcombo\\b", "\r\ncombo");
 		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
 		s = s.replaceAll("\\bdata\\b", "\r\ndata");
+		s = s.replaceAll("\\bunmap\\b\\s*\\b(\\w*)\\b", "unmap $1;");
+		s = s.replaceAll("\\bremap\\b\\s*\\b(\\w*)\\b\\s*\\b(\\w*)\\b", "remap $1 -> $2;");
 		s = s.replaceAll((":"), (";")); // : = ; in CM
 		s = s.replaceAll("\\s*;", ";");
 		return s;
