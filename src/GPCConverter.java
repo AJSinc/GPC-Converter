@@ -58,7 +58,7 @@ public class GPCConverter {
 		return newStr;
 	}
 	
-	public static void fixGPCErrors(GPC gpc) {
+	private static void staticCopyTempGPC(GPC gpc) {
 		definedList = gpc.getDefines();
 		varList = gpc.getVars();
 		varArrayList = gpc.getVarArrays();
@@ -68,6 +68,10 @@ public class GPCConverter {
 		comboList = gpc.getCombos();
 		functionList = gpc.getFunctions();
 		dataSegment = gpc.getDataSegment();
+	}
+	
+	public static void fixGPCErrors(GPC gpc) {
+		staticCopyTempGPC(gpc);
 		
 		replaceKeywords();
 		replaceDecimalNumbers();
@@ -85,6 +89,24 @@ public class GPCConverter {
 		gpc.setCombos(comboList);
 		gpc.setFunctions(functionList);
 		gpc.setDataSegment(dataSegment);
+	}
+	
+	public static void convertRemapsToGPC2(GPC gpc) {
+		staticCopyTempGPC(gpc);
+		
+		String newCode = "main {//remapping code \r\n";
+		while(mappingCode.size() > 0) {
+			String newMapping = mappingCode.get(0).replaceAll("\\bunmap\\b\\s*\\b(\\w*)\\b", "set_val($1,0)");
+				newMapping = newMapping.replaceAll("\\bremap\\b\\s*\\b(\\w*)\\b\\s*->\\s*\\b(\\w*)\\b", "set_val($2,get_val($1))");
+			
+			newCode += newMapping + (newMapping.endsWith(";") ? "" : ";") + "\r\n";
+			mappingCode.remove(0);
+		}
+		newCode += "}";
+		functionList.add(newCode); // must be added to the end of the GPC
+		
+		gpc.setMappings(mappingCode);
+		gpc.setFunctions(functionList);
 	}
 	
 	private static void replaceDecimalNumbers() {
