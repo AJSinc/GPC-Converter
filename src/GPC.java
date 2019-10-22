@@ -234,7 +234,6 @@ public class GPC {
 	
 	private String removeComments(String code) {
 	    StringBuilder newCode = new StringBuilder();
-	    String currComment = "";
 	    try (StringReader sr = new StringReader(code)) {
 	        boolean inBlockComment = false;
 	        boolean inLineComment = false;
