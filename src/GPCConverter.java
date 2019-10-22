@@ -80,6 +80,7 @@ public class GPCConverter {
 		removeUnusedFunctions();
 		replaceArrayTricks();
 		flattenMutlidimArrays();
+		fixInvalidDataDeclaration();
 		fixSemicolons();
 		
 		gpc.setVarArrays(varArrayList);
@@ -97,12 +98,12 @@ public class GPCConverter {
 		if(mappingCode.size() == 0) return;
 		
 		String newCode = "main {//remapping code \r\n";
-		while(mappingCode.size() > 0) {
-			String newMapping = mappingCode.get(0).replaceAll("\\bunmap\\b\\s*\\b(\\w*)\\b", "set_val($1,0)");
+		for(int i = 0; i < mappingCode.size(); i++) {
+			String newMapping = mappingCode.get(i).replaceAll("\\bunmap\\b\\s*\\b(\\w*)\\b", "set_val($1,0)");
 				newMapping = newMapping.replaceAll("\\bremap\\b\\s*\\b(\\w*)\\b\\s*->\\s*\\b(\\w*)\\b", "set_val($2,get_val($1))");
 			
 			newCode += newMapping + (newMapping.endsWith(";") ? "" : ";") + "\r\n";
-			mappingCode.remove(0);
+			mappingCode.set(i, ("//" + mappingCode.get(i)));
 		}
 		newCode += "}";
 		functionList.add(newCode); // must be added to the end of the GPC
@@ -133,10 +134,6 @@ public class GPCConverter {
 		s = s.replaceAll("\\bXB1_PL1\\b", "XB1_P3");
 		s = s.replaceAll("\\bXB1_PL2\\b", "XB1_P4");
 		return s;
-	}
-	
-	private static void replaceMappingCode() {
-		
 	}
 	
 	private static void replaceComboNames() {
@@ -178,6 +175,11 @@ public class GPCConverter {
 				replaceAllInCodeSegments(pattern, replacePattern);
 			}
 		}
+	}
+	
+	private static void fixInvalidDataDeclaration() {
+		replaceAllInList(varList, "\\b(\\w*)\\s*\\[\\s*0\\s*]", "$1[1]");
+		replaceAllInList(varArrayList, "\\b(\\w*)\\s*\\[\\s*0\\s*]", "$1[1]");
 	}
 	
 	private static void replaceArrayTricks() {
