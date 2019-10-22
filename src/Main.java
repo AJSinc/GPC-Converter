@@ -15,7 +15,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Main {
 	
-	private static final String VERSION = "v0.26r3";
+	private static final String VERSION = "v0.26r4";
 	
 	public static void main(String args[]) throws IOException {
 		File[] gpcFile;
