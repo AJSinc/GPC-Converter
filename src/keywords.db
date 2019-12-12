@@ -105,3 +105,4 @@ port_usb_poweron
 port_usb_poweroff
 display_overlay
 printf
+E
