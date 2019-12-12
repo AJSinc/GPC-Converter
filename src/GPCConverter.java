@@ -22,40 +22,23 @@ public class GPCConverter {
 	private static List<String> functionList;
 	private static String dataSegment;
 	
-	public static String fortmatGPCCode(String s) {
-		int braceCount = 0;
-		String operatorPattern = "(\\+|\\-|\\*|\\/|\\%|\\&|\\||\\=|\\!|\\^|\\>|\\<)";
-		String singleOperatorPattern = "(\\+|\\-|\\*|\\/|\\%|\\&|\\||\\=|\\>|\\<)";
-		String newStr = "";
-		s = s.replaceAll("\r\n\\s*\r\n\\}", "\r\n\\}"); // replace blank line followed by }
-		s = s.replaceAll("\\s*\\}", "\r\n}");
-		s = s.replaceAll("\\s*\\{", " {"); // set all { 1 from previous
-		s = s.replaceAll(",", ", "); // put space after commas
-		s = s.replaceAll("\\)\\s*\\{", ") {");
-		s = s.replaceAll("\\belse\\b\\s*\\bif\\b", "else if"); //replace All else\r\nif with else if\r\n
-		s = s.replaceAll("\\s*" + singleOperatorPattern + "\\s*", " $1 ");
-		s = s.replaceAll("\\s*" + operatorPattern + "\\s*" + operatorPattern + "\\s*" , " $1$2 ");
-		s = s.replaceAll("\\/\\*", "\r\n\r\n\\/\\*"); // comments
-		s = s.replaceAll("\\*\\/", "\r\n\\*\\/\r\n\r\n"); // comments
-		s = s.replaceAll("(\\D)[0]+([\\d]+)", "$1$2");
-		for(int i = 0; i < s.length(); i++) {
-			char currChar = s.charAt(i);
-			if(currChar == '{') braceCount++;
-			else if(currChar == '}') {
-				if(newStr.charAt(newStr.length()-1) == '\t') 
-					newStr = newStr.substring(0 , newStr.length()-1);
-				braceCount--;
-			}
-			
-			newStr += ("" + currChar);
-			
-			if(currChar == '\n') {
-				for(int k = 0; k < braceCount; k++) {
-					newStr += '\t';
-				}
-			}
+	public static void addT1Virtual(GPC gpc) {
+		staticCopyTempGPC(gpc);
+		List<String> cNames = getComboNames();
+		if(cNames.size() > 0) {
+			definedList.add("#define __LAST_COMBO__ " + cNames.get(cNames.size()-1));
+			varList.add("uint8 __COMBO_RUN__[" + cNames.size() + "];");
 		}
-		return newStr;
+		replaceAllInCodeSegments("(\\bevent_press\\b|\\bevent_release\\b)", "_$1");
+		replaceAllInList(mainCode, "\\bmain\\b", "main { if(__run_vm__)");
+		replaceAllInGPC("(\\bevent_press\\b|\\bevent_release\\b)", "_$1");
+		for(int i = 0; i < mainCode.size(); i++) mainCode.set(i, mainCode.get(i) + "}");
+		definedList.add(VirtualMachineT1Code.T1_VM_DEFINES.toString());
+		varList.add(VirtualMachineT1Code.T1_VM_VARS.toString());
+		mainCode.add(VirtualMachineT1Code.T1_VM_MAIN.toString());
+		functionList.add(VirtualMachineT1Code.T1_VM_FUNCS.toString());
+		
+		saveGPC(gpc);
 	}
 	
 	private static void staticCopyTempGPC(GPC gpc) {
@@ -70,10 +53,23 @@ public class GPCConverter {
 		dataSegment = gpc.getDataSegment();
 	}
 	
+	private static void saveGPC(GPC gpc) {
+		gpc.setDefines(definedList);
+		gpc.setVars(varList);
+		gpc.setVarArrays(varArrayList);
+		gpc.setMappings(mappingCode);
+		gpc.setInitCode(initCode);
+		gpc.setMainCode(mainCode);
+		gpc.setCombos(comboList);
+		gpc.setFunctions(functionList);
+		gpc.setDataSegment(dataSegment);
+	}
+	
 	public static void fixGPCErrors(GPC gpc) {
 		staticCopyTempGPC(gpc);
 		
 		replaceKeywords();
+		replaceInvalidArgCounts("");
 		replaceDecimalNumbers();
 		replaceFunctionNames();
 		replaceComboNames();
@@ -83,13 +79,7 @@ public class GPCConverter {
 		fixInvalidDataDeclaration();
 		fixSemicolons();
 		
-		gpc.setVarArrays(varArrayList);
-		gpc.setMappings(mappingCode);
-		gpc.setInitCode(initCode);
-		gpc.setMainCode(mainCode);
-		gpc.setCombos(comboList);
-		gpc.setFunctions(functionList);
-		gpc.setDataSegment(dataSegment);
+		saveGPC(gpc);
 	}
 	
 	public static void convertRemapsToGPC2(GPC gpc) {
@@ -108,8 +98,7 @@ public class GPCConverter {
 		newCode += "}";
 		functionList.add(newCode); // must be added to the end of the GPC
 		
-		gpc.setMappings(mappingCode);
-		gpc.setFunctions(functionList);
+		saveGPC(gpc);
 	}
 	
 	private static void replaceDecimalNumbers() {
@@ -134,6 +123,17 @@ public class GPCConverter {
 		s = s.replaceAll("\\bXB1_PL1\\b", "XB1_P3");
 		s = s.replaceAll("\\bXB1_PL2\\b", "XB1_P4");
 		return s;
+	}
+	
+	private static void replaceInvalidArgCounts(String s) {
+		/*
+		for(int i = 0; i < )
+		Matcher m = p.matcher(s);
+		while(match.start != -1) {
+			
+			
+		}
+		*/
 	}
 	
 	private static void replaceComboNames() {
@@ -284,7 +284,7 @@ public class GPCConverter {
 	private static String fixSemicolons(List<String> codeBlock) { // ADD CODE TO REMOVE RANDOM TOKENS
 		String newStr = "";
 		String prevVarName = "";
-		boolean prevVar = false, oneLineIf = false;
+		boolean prevVar = false, oneLineIf = false, inForLine = false;
 		int parenCount = 0;
 		
 		while(!codeBlock.isEmpty()) {
@@ -309,6 +309,7 @@ public class GPCConverter {
 				prevVar = true;
 				if(parenCount == 0) {
 					parenCount = -1; // paren just ended
+					inForLine = false;
 				}
 			}
 			else if(fixedStr.matches((".*(\\[|\\]).*"))) { // array square brackets
@@ -331,6 +332,9 @@ public class GPCConverter {
 				}
 			}
 			else if(fixedStr.matches("(for|while|if|else)")) { // containing conditional statements
+				if(fixedStr.matches("for")) {
+					inForLine = true;
+				}
 				if(oneLineIf) fixedStr = " " + fixedStr;
 				else if(prevVar) fixedStr = ";\r\n" + fixedStr;
 				fixedStr += " ";
@@ -375,7 +379,7 @@ public class GPCConverter {
 					fixedStr = "" + fixedStr.charAt(0);
 				}
 				if(prevVar && oneLineIf && fixedStr.equals("=")) {
-					if(codeBlock.get(1).charAt(0) != '=') {
+					if(codeBlock.get(1).charAt(0) != '=' && !inForLine) {
 						fixedStr = "==";
 					}
 				}
@@ -428,6 +432,7 @@ public class GPCConverter {
 	private static List<String> getComboNames() {
 		List<String> comboNames = new ArrayList<String>();
 		for(String combo : comboList) {
+			if(combo.startsWith("/*")) continue;
 			int lastIdx = combo.indexOf("{") != -1 ? combo.indexOf("{") : combo.length();
 			String comboName = combo.substring(combo.indexOf("combo ") + 6, lastIdx).trim();
 			comboNames.add(comboName);
