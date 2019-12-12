@@ -15,7 +15,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Main {
 	
-	private static final String VERSION = "v0.26r4";
+	private static final String VERSION = "v0.27";
 	
 	public static void main(String args[]) throws IOException {
 		File[] gpcFile;
@@ -51,9 +51,7 @@ public class Main {
 	public static File[] chooseFile() {
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-				| UnsupportedLookAndFeelException e) {
-			// TODO Auto-generated catch block
+		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException e) {
 			e.printStackTrace();
 			JOptionPane.showMessageDialog(null, "Error : " + e.toString());
 			return null;
@@ -72,7 +70,8 @@ public class Main {
 		GPC gpc = new GPC(gpcFile.getCanonicalPath());
 		GPCConverter.fixGPCErrors(gpc);
 		GPCConverter.convertRemapsToGPC2(gpc);
-		String newCode = GPCConverter.fortmatGPCCode(gpc.toString()).replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg");
+		GPCConverter.addT1Virtual(gpc);
+		String newCode = CodeFormatter.fortmatCode(gpc.toString()).replaceAll("\\bdiscord.gg\\/.+?\\b", "discord.gg");
 		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gpcFile.getCanonicalPath().substring(0, (gpcFile.getCanonicalPath().length() - 3)) + "Titan_Two.gpc"), "utf-8"));
 		writer.write("#pragma METAINFO(\"" + gpcFile.getName() +  "\", 1, 0, \"Buffy's GPC Converter " + VERSION + "\")\r\n");
 		writer.write("#include <titanone.gph>\r\n\r\n\r\n");
@@ -81,6 +80,5 @@ public class Main {
 		writer.close();
 		//JOptionPane.showMessageDialog(null, "Script successfully converted.");
 	}
-	
 	
 }
