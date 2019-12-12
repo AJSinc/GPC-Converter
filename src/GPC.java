@@ -73,7 +73,7 @@ public class GPC {
 				else if(currLine.startsWith("function ")) functionList.add(parseCodeBlock(currLine, '{', '}'));
 				else if(currLine.startsWith("data")) dataSegment = parseCodeBlock(currLine, '(', ')') + ";"; // will cause ; to trigger other
 				else { // unknown line
-					System.out.println("Other: " + currLine);
+					//System.out.println("Other: " + currLine);
 					readIdx = 1;
 				}
 			}
@@ -118,6 +118,7 @@ public class GPC {
 			i++;
 		}
 		// add support for multiline remaps?
+		System.out.println(s);
 		return parsedStr + (!parsedStr.endsWith(";") ? ";" : "");
 	}
 	
@@ -312,8 +313,8 @@ public class GPC {
 		s = s.replaceAll("\\bcombo\\b", "\r\ncombo");
 		s = s.replaceAll("\\bfunction\\b", "\r\nfunction");
 		s = s.replaceAll("\\bdata\\b", "\r\ndata");
-		s = s.replaceAll("\\bunmap\\b\\s*\\b(\\w*)\\b", "unmap $1;");
-		s = s.replaceAll("\\bremap\\b\\s*\\b(\\w*)\\b\\s*\\b(\\w*)\\b", "remap $1 -> $2;");
+		s = s.replaceAll("\\bunmap\\b\\s*\\b(\\w+)\\b\\s*(;|\\s*)", "unmap $1;");
+		s = s.replaceAll("\\bremap\\b\\s*\\b(\\w+)\\b\\s*(->|\\s*)\\s*\\b(\\w+)\\b\\s*(;|\\s*)", "remap $1 -> $3;");
 		s = s.replaceAll((":"), (";")); // : = ; in CM
 		s = s.replaceAll("\\s*;", ";");
 		return s;
@@ -324,85 +325,35 @@ public class GPC {
 		return s.trim().replaceAll("(\\s+)"," ");
 	}
 	
-	public List<String> getDefines() {
-		return definedList;
-	}
+	public List<String> getDefines() { return definedList; }
+	public void setDefines(List<String> d) { this.definedList = d; }
 	
-	public void setDefines(List<String> d) {
-		this.definedList = d;
-	}
+	public List<String> getMappings() { return mappingCode; }
+	public void setMappings(List<String> s) { this.mappingCode = s; }
 	
-	public List<String> getMappings() {
-		return mappingCode;
-	}
+	public List<String> getVars() { return varList; }
+	public void setVars(List<String> s) { this.varList = s; }
 	
-	public void setMappings(List<String> s) {
-		this.mappingCode = s;
-	}
+	public List<String> getVarArrays() { return varArrayList;}
+	public void setVarArrays(List<String> s) { this.varArrayList = s; }
 	
-	public List<String> getVars() {
-		return varList;
-	}
+	public List<String> getInitCode() { return initCode; }
+	public void setInitCode(List<String> s) { this.initCode = s; }
 	
-	public void setVars(List<String> s) {
-		this.varList = s;
-	}
+	public List<String> getMainCode() { return mainCode; }
+	public void setMainCode(List<String> s) { this.mainCode = s; }
 	
-	public List<String> getVarArrays() {
-		return varArrayList;
-	}
+	public List<String> getCombos() { return comboList; }
+	public void setCombos(List<String> s) { this.comboList = s; }
 	
-	public void setVarArrays(List<String> s) {
-		this.varArrayList = s;
-	}
+	public List<String> getFunctions() { return functionList; }
+	public void setFunctions(List<String> s) { this.functionList = s; }
 	
-	public List<String> getInitCode() {
-		return initCode;
-	}
+	public String getDataSegment() { return dataSegment; }
+	public void setDataSegment(String s) { this.dataSegment = s; }
 	
-	public void setInitCode(List<String> s) {
-		this.initCode = s;
-	}
-	
-	public List<String> getMainCode() {
-		return mainCode;
-	}
-	
-	public void setMainCode(List<String> s) {
-		this.mainCode = s;
-	}
-	
-	public List<String> getCombos() {
-		return comboList;
-	}
-	
-	public void setCombos(List<String> s) {
-		this.comboList = s;
-	}
-	
-	public List<String> getFunctions() {
-		return functionList;
-	}
-	
-	public void setFunctions(List<String> s) {
-		this.functionList = s;
-	}
-	
-	public String getDataSegment() {
-		return dataSegment;
-	}
-	
-	public void setDataSegment(String s) {
-		this.dataSegment = s;
-	}
-	
-	public String getCommentBlock() {
-		return commentBlock;
-	}
-	
-	public void setCommentBlock(String s) {
-		this.commentBlock = s;
-	}
+	public String getCommentBlock() { return commentBlock; }
+	public void setCommentBlock(String s) { this.commentBlock = s; }
 	
 	@Override
 	public String toString() {
@@ -413,8 +364,8 @@ public class GPC {
 		str += String.join("\r\n", varArrayList) + ((varArrayList.isEmpty()) ? "" : dEndLine);
 		str += String.join("\r\n", varList) + ((varList.isEmpty()) ? "" : dEndLine);
 		str += String.join("\r\n", initCode) + ((initCode.isEmpty()) ? "" : dEndLine);
-		str += String.join("\r\n", mainCode) + ((mainCode.isEmpty()) ? "" : dEndLine);
 		str += String.join("\r\n", comboList) + ((comboList.isEmpty()) ? "" : dEndLine);
+		str += String.join("\r\n", mainCode) + ((mainCode.isEmpty()) ? "" : dEndLine);
 		str += String.join("\r\n", functionList) + ((functionList.isEmpty()) ? "" : dEndLine);
 		return str;
 	}
